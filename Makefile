@@ -28,3 +28,6 @@ clean:
 	$(RM) -r $(BUILD_DIR) $(TARGET)
 
 -include $(DEPS)
+
+install-debian:
+	sudo apt install build-essential pkg-config libglew-dev libglfw3-dev libglm-dev libsoil-dev libgl1-mesa-dev mesa-utils
