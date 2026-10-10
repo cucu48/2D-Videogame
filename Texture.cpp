@@ -50,6 +50,7 @@ bool Texture::loadFromFile(const string &filename, PixelFormat format)
 		break;
 	}
 	glGenerateMipmap(GL_TEXTURE_2D);
+	delete[] image;
 	
 	return true;
 }
