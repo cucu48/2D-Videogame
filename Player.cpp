@@ -8,6 +8,9 @@
 #define JUMP_ANGLE_STEP 4
 #define JUMP_HEIGHT 96
 #define FALL_STEP 4
+#define HITBOX_OFFSET_X 4
+#define HITBOX_WIDTH 24
+#define HITBOX_HEIGHT 32
 
 
 enum PlayerAnims
@@ -28,6 +31,11 @@ Player::~Player()
 {
 	if (sprite != NULL)
 		delete sprite;
+}
+
+glm::ivec2 Player::hitboxPos() const
+{
+	return glm::ivec2(posPlayer.x + HITBOX_OFFSET_X, posPlayer.y);
 }
 
 void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
@@ -91,7 +99,7 @@ void Player::update(int deltaTime)
             if(sprite->animation() != MOVE_LEFT)
                 sprite->changeAnimation(MOVE_LEFT);
             posPlayer.x -= 2;
-            if(map->collisionMoveLeft(posPlayer, glm::ivec2(32, 32)))
+            if(map->collisionMoveLeft(hitboxPos(), glm::ivec2(HITBOX_WIDTH, HITBOX_HEIGHT)))
             {
                 posPlayer.x += 2;
                 sprite->changeAnimation(STAND_LEFT);
@@ -103,7 +111,7 @@ void Player::update(int deltaTime)
             if(sprite->animation() != MOVE_RIGHT)
                 sprite->changeAnimation(MOVE_RIGHT);
             posPlayer.x += 2;
-            if(map->collisionMoveRight(posPlayer, glm::ivec2(32, 32)))
+            if(map->collisionMoveRight(hitboxPos(), glm::ivec2(HITBOX_WIDTH, HITBOX_HEIGHT)))
             {
                 posPlayer.x -= 2;
                 sprite->changeAnimation(STAND_RIGHT);
@@ -128,7 +136,7 @@ jumpAngle += JUMP_ANGLE_STEP;
             lookingRight = false;
             posPlayer.x -= 3;
 			//if (jumpAngle < 86 || jumpAngle > 94) {
-            	if(map->collisionMoveLeft(posPlayer, glm::ivec2(32, 32)))
+            	if(map->collisionMoveLeft(hitboxPos(), glm::ivec2(HITBOX_WIDTH, HITBOX_HEIGHT)))
             	{
                 	posPlayer.x += 3; // Si choca con pared izquierda, frena
             	}
@@ -138,7 +146,7 @@ jumpAngle += JUMP_ANGLE_STEP;
         {
             lookingRight = true;
             posPlayer.x += 3;
-            if(map->collisionMoveRight(posPlayer, glm::ivec2(32, 32)))
+            if(map->collisionMoveRight(hitboxPos(), glm::ivec2(HITBOX_WIDTH, HITBOX_HEIGHT)))
             {
                 posPlayer.x -= 3; // Si choca con pared derecha, frena
             }
@@ -170,7 +178,7 @@ jumpAngle += JUMP_ANGLE_STEP;
             // comprovem si arriba a terra abans d'arribar a 180 graus
             if(jumpAngle > 90)
             {
-                if(map->collisionMoveDown(posPlayer, glm::ivec2(32, 32), &posPlayer.y))
+                if(map->collisionMoveDown(hitboxPos(), glm::ivec2(HITBOX_WIDTH, HITBOX_HEIGHT), &posPlayer.y))
                 {
                     bJumping = false;
                     sprite->changeAnimation(lookingRight ? STAND_RIGHT : STAND_LEFT);
@@ -183,7 +191,7 @@ jumpAngle += JUMP_ANGLE_STEP;
 		posPlayer.y += FALL_STEP;
         
         // si collisionMoveDown retorna false, vol dir que no està tocant terra i per tant està caient
-        if(!map->collisionMoveDown(posPlayer, glm::ivec2(32, 32), &posPlayer.y))
+        if(!map->collisionMoveDown(hitboxPos(), glm::ivec2(HITBOX_WIDTH, HITBOX_HEIGHT), &posPlayer.y))
         {
             // activar anim de caiguda
             int fallAnim = lookingRight ? JUMP_FALL_RIGHT : JUMP_FALL_LEFT;

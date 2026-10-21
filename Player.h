@@ -25,6 +25,7 @@ public:
 	void setPosition(const glm::vec2 &pos);
 	
 private:
+	glm::ivec2 hitboxPos() const;
 	bool lookingRight;
 	bool bJumping;
 	glm::ivec2 tileMapDispl, posPlayer;
