@@ -1,6 +1,6 @@
 TILEMAP
 16 31
-16 16
+32 32
 images/Stage1-2_TileSheet.png
 8 4
 4

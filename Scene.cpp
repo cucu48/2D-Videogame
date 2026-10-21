@@ -3,13 +3,11 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "Scene.h"
 #include "Game.h"
+#include <algorithm>
 
 
-#define SCREEN_X 32
-#define SCREEN_Y 16
 
 #define INIT_PLAYER_X_TILES 4
-#define INIT_PLAYER_Y_TILES 25
 
 
 Scene::Scene()
@@ -31,13 +29,15 @@ Scene::~Scene()
 void Scene::init()
 {
 	initShaders();
-	map = TileMap::createTileMap("levels/Stage1-1.txt", glm::vec2(SCREEN_X, SCREEN_Y), texProgram);
+	map = TileMap::createTileMap("levels/Stage1-1.txt", glm::vec2(0, 0), texProgram);
 	player = new Player();
-	player->init(glm::ivec2(SCREEN_X, SCREEN_Y), texProgram);
-	player->setPosition(glm::vec2(INIT_PLAYER_X_TILES * map->getTileSize(), INIT_PLAYER_Y_TILES * map->getTileSize()));
+	player->init(glm::ivec2(0, 0), texProgram);
+	player->setPosition(glm::vec2(map->findSpawn(INIT_PLAYER_X_TILES, glm::ivec2(32, 32))));
 	player->setTileMap(map);
-	projection = glm::ortho(0.f, float(SCREEN_WIDTH), float(SCREEN_HEIGHT), 0.f);
+	glm::vec2 mapPx = glm::vec2(map->getMapSize()) * float(map->getTileSize());
+	projection = glm::ortho(0.f, mapPx.x, mapPx.y, 0.f);
 	currentTime = 0.0f;
+	//glClearColor(0.f, 0.f, 0.f, 1.f);
 }
 
 void Scene::update(int deltaTime)
@@ -46,8 +46,13 @@ void Scene::update(int deltaTime)
 	player->update(deltaTime);
 }
 
-void Scene::render()
+void Scene::render(int windowWidth, int windowHeight)
 {
+	glm::vec2 mapPx = glm::vec2(map->getMapSize()) * float(map->getTileSize());
+	float scale = std::min(windowWidth / mapPx.x, windowHeight / mapPx.y);
+	int w = int(mapPx.x * scale), h = int(mapPx.y * scale);
+	glViewport((windowWidth - w) / 2, (windowHeight - h) / 2, w, h);
+
 	glm::mat4 modelview;
 
 	texProgram.use();

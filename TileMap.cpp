@@ -8,6 +8,10 @@
 
 using namespace std;
 
+static int floorDiv(int a, int b)
+{
+	return (a >= 0) ? a / b : (a - b + 1) / b;
+}
 
 TileMap *TileMap::createTileMap(const string &levelFile, const glm::vec2 &minCoords, ShaderProgram &program)
 {
@@ -97,6 +101,18 @@ bool TileMap::loadLevel(const string &levelFile)
 	sstream >> blankTileCode;
 	sstream.clear();
 
+	// Lista de tiles que no bloquean al jugador
+	getline(fin, line);
+	if(line.compare(0, 8, "NONSOLID") != 0)
+		return false;
+	solidTile.assign(tilesheetSize.x * tilesheetSize.y, true);
+	sstream.str(line.substr(8));
+	int id;
+	while(sstream >> id)
+		if(id >= 0 && id < int(solidTile.size()))
+			solidTile[id] = false;
+	sstream.clear();
+
 
 	vector<int> tiles;
 	for(int j=0; j<mapSize.y; j++)
@@ -128,6 +144,36 @@ bool TileMap::loadLevel(const string &levelFile)
 	fin.close();
 	
 	return true;
+}
+
+glm::ivec2 TileMap::findSpawn(int preferredCol, const glm::ivec2 &size) const
+{
+	int tilesW = (size.x + tileSize - 1) / tileSize;
+	int tilesH = (size.y + tileSize - 1) / tileSize;
+
+	for(int y = mapSize.y - 1 - tilesH; y >= 0; y--)
+	{
+		for(int d = 0; d < mapSize.x; d++)
+		{
+			int candidates[2] = { preferredCol - d, preferredCol + d };
+			for(int c = 0; c < 2; c++)
+			{
+				int x = candidates[c];
+				bool free = true, ground = false;
+				for(int i = 0; i < tilesW; i++)
+				{
+					for(int j = 0; j < tilesH; j++)
+						if(isSolid(x + i, y + j))
+							free = false;
+					if(isSolid(x + i, y + tilesH))
+						ground = true;
+				}
+				if(free && ground)
+					return glm::ivec2(x * tileSize, (y + tilesH) * tileSize - size.y);
+			}
+		}
+	}
+	return glm::ivec2(preferredCol * tileSize, 0);
 }
 
 void TileMap::prepareArrays(const glm::vec2 &minCoords, ShaderProgram &program)
@@ -187,12 +233,12 @@ bool TileMap::collisionMoveLeft(const glm::ivec2 &pos, const glm::ivec2 &size) c
 {
 	int x, y0, y1;
 	
-	x = pos.x / tileSize;
-	y0 = pos.y / tileSize;
-	y1 = (pos.y + size.y - 1) / tileSize;
+	x = floorDiv(pos.x, tileSize);
+	y0 = floorDiv(pos.y, tileSize);
+	y1 = floorDiv(pos.y + size.y - 1, tileSize);
 	for(int y=y0; y<=y1; y++)
 	{
-		if(map[y*mapSize.x+x] != blankTileCode)
+		if(isSolid(x, y))
 			return true;
 	}
 	
@@ -203,12 +249,12 @@ bool TileMap::collisionMoveRight(const glm::ivec2 &pos, const glm::ivec2 &size) 
 {
 	int x, y0, y1;
 	
-	x = (pos.x + size.x - 1) / tileSize;
-	y0 = pos.y / tileSize;
-	y1 = (pos.y + size.y - 1) / tileSize;
+	x = floorDiv(pos.x + size.x - 1, tileSize);
+	y0 = floorDiv(pos.y, tileSize);
+	y1 = floorDiv(pos.y + size.y - 1, tileSize);
 	for(int y=y0; y<=y1; y++)
 	{
-		if(map[y*mapSize.x+x] != blankTileCode)
+		if(isSolid(x, y))
 			return true;
 	}
 	
@@ -219,12 +265,12 @@ bool TileMap::collisionMoveDown(const glm::ivec2 &pos, const glm::ivec2 &size, i
 {
 	int x0, x1, y;
 	
-	x0 = pos.x / tileSize;
-	x1 = (pos.x + size.x - 1) / tileSize;
-	y = (pos.y + size.y - 1) / tileSize;
+	x0 = floorDiv(pos.x, tileSize);
+	x1 = floorDiv(pos.x + size.x - 1, tileSize);
+	y = floorDiv(pos.y + size.y - 1, tileSize);
 	for(int x=x0; x<=x1; x++)
 	{
-		if(map[y*mapSize.x+x] != blankTileCode)
+		if(isSolid(x, y))
 		{
 			if(*posY - tileSize * y + size.y <= 4)
 			{
@@ -235,6 +281,14 @@ bool TileMap::collisionMoveDown(const glm::ivec2 &pos, const glm::ivec2 &size, i
 	}
 	
 	return false;
+}
+
+bool TileMap::isSolid(int x, int y) const
+{
+	
+	if(x < 0 || x >= mapSize.x || y < 0 || y >= mapSize.y)
+		return true;
+	return solidTile[map[y * mapSize.x + x]];
 }
 
 

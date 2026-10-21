@@ -14,6 +14,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		Game::instance().keyReleased(key);
 }
 
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+{
+	Game::instance().resize(width, height);
+}
+
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	Game::instance().mouseMove(int(xpos), int(ypos));
@@ -32,13 +37,14 @@ int main(void)
 {
 	GLFWwindow* window;
 	double timePerFrame = 1.f / TARGET_FRAMERATE, timePreviousFrame, currentTime;
+	double accumulator = 0.0;
 
 	/* Initialize the library */
 	if (!glfwInit())
 		return -1;
 
 	/* Create a windowed mode window and its OpenGL context */
-	window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Hello World", NULL, NULL);
+	window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Pocket Bomberman", NULL, NULL);
 	if (!window)
 	{
 		glfwTerminate();
@@ -49,11 +55,14 @@ int main(void)
 	glfwSetWindowPos(window, 100, 100);
 	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
+	/* Sync with the monitor so the loop doesn't burn the CPU */
+	glfwSwapInterval(1);
 
 	/* Set callbacks */
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetCursorPosCallback(window, cursor_position_callback);
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
+	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
 	/* Init glew to have access to GL extensions */
 	glewExperimental = GL_TRUE;
@@ -61,23 +70,30 @@ int main(void)
 
 	/* Init step of the game loop */
 	Game::instance().init();
+	int fbWidth, fbHeight;
+	glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+	Game::instance().resize(fbWidth, fbHeight);
 	timePreviousFrame = glfwGetTime();
 
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window))
 	{
 		currentTime = glfwGetTime();
-		if (currentTime - timePreviousFrame >= timePerFrame)
-		{
-			/* Update & render steps of the game loop */
-			if(!Game::instance().update(int(1000.0f * (currentTime - timePreviousFrame))))
-				glfwSetWindowShouldClose(window, GLFW_TRUE);
-			Game::instance().render();
-			timePreviousFrame = currentTime;
+		accumulator += currentTime - timePreviousFrame;
+		timePreviousFrame = currentTime;
+		if (accumulator > 0.25)	// avoid a burst of updates after a long pause
+			accumulator = 0.25;
 
-			/* Swap front and back buffers */
-			glfwSwapBuffers(window);
+		/* Game logic always advances in fixed 1/60 s steps */
+		while (accumulator >= timePerFrame)
+		{
+			if(!Game::instance().update(int(1000.0f * timePerFrame)))
+				glfwSetWindowShouldClose(window, GLFW_TRUE);
+			accumulator -= timePerFrame;
 		}
+
+		Game::instance().render();
+		glfwSwapBuffers(window);
 
 		/* Poll for and process events */
 		glfwPollEvents();

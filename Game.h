@@ -30,6 +30,7 @@ public:
 	void init();
 	bool update(int deltaTime);
 	void render();
+	void resize(int width, int height);
 	
 	// Input callback methods
 	void keyPressed(int key);
@@ -42,6 +43,7 @@ public:
 
 private:
 	bool bPlay; // Continue to play game?
+	int windowWidth, windowHeight; // Tamaño real de la ventana en píxeles
 	bool keys[GLFW_KEY_LAST+1]; // Store key states so that 
 							    // we can have access at any time
 	Scene scene;

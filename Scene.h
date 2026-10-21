@@ -21,7 +21,7 @@ public:
 
 	void init();
 	void update(int deltaTime);
-	void render();
+	void render(int windowWidth, int windowHeight);
 
 private:
 	void initShaders();

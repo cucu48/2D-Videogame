@@ -123,17 +123,16 @@ void Player::update(int deltaTime)
     {
 jumpAngle += JUMP_ANGLE_STEP;
 
-        // 1. MOVIMIENTO HORIZONTAL EN EL AIRE CON COLISIONES
         if(Game::instance().getKey(GLFW_KEY_LEFT))
         {
             lookingRight = false;
             posPlayer.x -= 3;
-			if (jumpAngle < 86 || jumpAngle > 94) {
+			//if (jumpAngle < 86 || jumpAngle > 94) {
             	if(map->collisionMoveLeft(posPlayer, glm::ivec2(32, 32)))
             	{
                 	posPlayer.x += 3; // Si choca con pared izquierda, frena
             	}
-			}
+			//}
         }
         else if(Game::instance().getKey(GLFW_KEY_RIGHT))
         {
@@ -165,7 +164,7 @@ jumpAngle += JUMP_ANGLE_STEP;
         }
         else
         {
-            posPlayer.y = int(startY - 96 * sin(3.14159f * jumpAngle / 180.f));
+            posPlayer.y = int(startY - JUMP_HEIGHT * sin(3.14159f * jumpAngle / 180.f));
             
             // en baixada 8angle + de 90 graus) 
             // comprovem si arriba a terra abans d'arribar a 180 graus
