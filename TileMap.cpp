@@ -138,6 +138,7 @@ bool TileMap::loadLevel(const string &levelFile)
 		if(!row.eof())
 			return false;
 	}
+	blockedTile.assign(tiles.size(), false);
 	map = new int[tiles.size()];
 	for(size_t i=0; i<tiles.size(); i++)
 		map[i] = tiles[i];
@@ -283,12 +284,57 @@ bool TileMap::collisionMoveDown(const glm::ivec2 &pos, const glm::ivec2 &size, i
 	return false;
 }
 
-bool TileMap::isSolid(int x, int y) const
+//lo del techo
+bool TileMap::collisionMoveUp(const glm::ivec2 &pos, const glm::ivec2 &size, int *posY) const
 {
+	int x0, x1, y;
 	
+	x0 = floorDiv(pos.x, tileSize);
+	x1 = floorDiv(pos.x + size.x - 1, tileSize);
+	y = floorDiv(pos.y, tileSize);
+	for(int x=x0; x<=x1; x++)
+	{
+		if(isSolid(x, y))
+		{
+			*posY = tileSize * (y + 1);
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+// true si la caja se solapa con algun tile solido
+bool TileMap::collisionBox(const glm::ivec2 &pos, const glm::ivec2 &size) const
+{
+	int x0 = floorDiv(pos.x, tileSize), x1 = floorDiv(pos.x + size.x - 1, tileSize);
+	int y0 = floorDiv(pos.y, tileSize), y1 = floorDiv(pos.y + size.y - 1, tileSize);
+	for(int y=y0; y<=y1; y++)
+		for(int x=x0; x<=x1; x++)
+			if(isSolid(x, y))
+				return true;
+	return false;
+}
+
+bool TileMap::isWall(int x, int y) const
+{
 	if(x < 0 || x >= mapSize.x || y < 0 || y >= mapSize.y)
 		return true;
 	return solidTile[map[y * mapSize.x + x]];
+}
+
+bool TileMap::isSolid(int x, int y) const
+{
+	if(isWall(x, y))
+		return true;
+	return blockedTile[y * mapSize.x + x];
+}
+
+void TileMap::setBlocked(int x, int y, bool blocked)
+{
+	if(x < 0 || x >= mapSize.x || y < 0 || y >= mapSize.y)
+		return;
+	blockedTile[y * mapSize.x + x] = blocked;
 }
 
 

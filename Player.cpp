@@ -11,12 +11,13 @@
 #define HITBOX_OFFSET_X 4
 #define HITBOX_WIDTH 24
 #define HITBOX_HEIGHT 32
+#define CORNER_TOLERANCE 8 // px que se puede empujar al jugador para colarse por un hueco
 
 
 enum PlayerAnims
 {
 	STAND_LEFT, STAND_RIGHT, MOVE_LEFT, MOVE_RIGHT, 
-    JUMP_UP_LEFT, JUMP_FALL_LEFT, JUMP_UP_RIGHT, JUMP_FALL_RIGHT
+    JUMP_UP_LEFT, JUMP_FALL_LEFT, JUMP_UP_RIGHT, JUMP_FALL_RIGHT, DEATH
 
 };
 
@@ -38,13 +39,21 @@ glm::ivec2 Player::hitboxPos() const
 	return glm::ivec2(posPlayer.x + HITBOX_OFFSET_X, posPlayer.y);
 }
 
+glm::ivec2 Player::hitboxSize() const
+{
+	return glm::ivec2(HITBOX_WIDTH, HITBOX_HEIGHT);
+}
+
 void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
 {
 	lookingRight = true;
 	bJumping = false;
+	bRising = false;
+	bOnGround = false;
+	bDead = false;
 	spritesheet.loadFromFile("images/player.png", TEXTURE_PIXEL_FORMAT_RGBA);
 	sprite = Sprite::createSprite(glm::ivec2(32, 32), glm::vec2(0.25, 0.25), &spritesheet, &shaderProgram);
-	sprite->setNumberAnimations(8);
+	sprite->setNumberAnimations(9);
 	
 		sprite->setAnimationSpeed(STAND_LEFT, 8);
 		sprite->addKeyframe(STAND_LEFT, glm::vec2(0.f, 0.f));
@@ -79,6 +88,11 @@ void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
     // Caer (Frame 1, Columna 3)
     	sprite->setAnimationSpeed(JUMP_FALL_RIGHT, 4);
     	sprite->addKeyframe(JUMP_FALL_RIGHT, glm::vec2(0.75f, 0.5f));
+
+    // --- MUERTE (4º sprite de la 1ª y 2ª fila, alternando) ---
+    	sprite->setAnimationSpeed(DEATH, 8);
+    	sprite->addKeyframe(DEATH, glm::vec2(0.75f, 0.f));
+    	sprite->addKeyframe(DEATH, glm::vec2(0.75f, 0.25f));
 		
 	sprite->changeAnimation(0);
 	tileMapDispl = tileMapPos;
@@ -89,139 +103,163 @@ void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
 void Player::update(int deltaTime)
 {
     sprite->update(deltaTime);
+
+    // muerto: solo se reproduce la animacion de muerte, sin control ni gravedad
+    if(bDead)
+        return;
+
+    glm::ivec2 hbSize(HITBOX_WIDTH, HITBOX_HEIGHT);
+    bool bInAir = bJumping || !bOnGround;
+    int speed = bJumping ? 3 : 2; // en el salto se avanza un poco mas rapido
     
-    // --- MOVIMIENTO HORIZONTAL (En suelo) ---
-    if(!bJumping)
+    // --- MOVIMIENTO HORIZONTAL ---
+    if(Game::instance().getKey(GLFW_KEY_LEFT))
     {
-        if(Game::instance().getKey(GLFW_KEY_LEFT))
+        lookingRight = false;
+        if(!bInAir && sprite->animation() != MOVE_LEFT)
+            sprite->changeAnimation(MOVE_LEFT);
+        posPlayer.x -= speed;
+        if(map->collisionMoveLeft(hitboxPos(), hbSize) && !(bInAir && nudgeVertical()))
         {
-            lookingRight = false; // Actualizamos dirección
-            if(sprite->animation() != MOVE_LEFT)
-                sprite->changeAnimation(MOVE_LEFT);
-            posPlayer.x -= 2;
-            if(map->collisionMoveLeft(hitboxPos(), glm::ivec2(HITBOX_WIDTH, HITBOX_HEIGHT)))
-            {
-                posPlayer.x += 2;
+            posPlayer.x += speed;
+            if(!bInAir)
                 sprite->changeAnimation(STAND_LEFT);
-            }
         }
-        else if(Game::instance().getKey(GLFW_KEY_RIGHT))
+    }
+    else if(Game::instance().getKey(GLFW_KEY_RIGHT))
+    {
+        lookingRight = true;
+        if(!bInAir && sprite->animation() != MOVE_RIGHT)
+            sprite->changeAnimation(MOVE_RIGHT);
+        posPlayer.x += speed;
+        if(map->collisionMoveRight(hitboxPos(), hbSize) && !(bInAir && nudgeVertical()))
         {
-            lookingRight = true; // Actualizamos dirección
-            if(sprite->animation() != MOVE_RIGHT)
-                sprite->changeAnimation(MOVE_RIGHT);
-            posPlayer.x += 2;
-            if(map->collisionMoveRight(hitboxPos(), glm::ivec2(HITBOX_WIDTH, HITBOX_HEIGHT)))
-            {
-                posPlayer.x -= 2;
-                sprite->changeAnimation(STAND_RIGHT);
-            }
-        }
-        else
-        {
-            if(sprite->animation() == MOVE_LEFT)
-                sprite->changeAnimation(STAND_LEFT);
-            else if(sprite->animation() == MOVE_RIGHT)
+            posPlayer.x -= speed;
+            if(!bInAir)
                 sprite->changeAnimation(STAND_RIGHT);
         }
     }
-    
-	//logica salto
-    if(bJumping)
+    else if(!bInAir)
     {
-jumpAngle += JUMP_ANGLE_STEP;
-
-        if(Game::instance().getKey(GLFW_KEY_LEFT))
+        if(sprite->animation() == MOVE_LEFT)
+            sprite->changeAnimation(STAND_LEFT);
+        else if(sprite->animation() == MOVE_RIGHT)
+            sprite->changeAnimation(STAND_RIGHT);
+    }
+    
+    // --- MOVIMIENTO VERTICAL ---
+    if(bRising)
+    {
+        // subida del salto: media parabola (de 0 a 90 graus)
+        jumpAngle += JUMP_ANGLE_STEP;
+        if(jumpAngle >= 90)
         {
-            lookingRight = false;
-            posPlayer.x -= 3;
-			//if (jumpAngle < 86 || jumpAngle > 94) {
-            	if(map->collisionMoveLeft(hitboxPos(), glm::ivec2(HITBOX_WIDTH, HITBOX_HEIGHT)))
-            	{
-                	posPlayer.x += 3; // Si choca con pared izquierda, frena
-            	}
-			//}
-        }
-        else if(Game::instance().getKey(GLFW_KEY_RIGHT))
-        {
-            lookingRight = true;
-            posPlayer.x += 3;
-            if(map->collisionMoveRight(hitboxPos(), glm::ivec2(HITBOX_WIDTH, HITBOX_HEIGHT)))
-            {
-                posPlayer.x -= 3; // Si choca con pared derecha, frena
-            }
-        }
-
-        //canvi animacio de salt segons si cau o puja
-        int targetAnim;
-        if (jumpAngle < 90) {
-            targetAnim = lookingRight ? JUMP_UP_RIGHT : JUMP_UP_LEFT;
-        } else {
-            targetAnim = lookingRight ? JUMP_FALL_RIGHT : JUMP_FALL_LEFT;
-        }
-        
-        if (sprite->animation() != targetAnim)
-            sprite->changeAnimation(targetAnim);
-
-        // calcul parabola de salt 
-        if(jumpAngle == 180)
-        {
-            bJumping = false;
-            posPlayer.y = startY;
-            sprite->changeAnimation(lookingRight ? STAND_RIGHT : STAND_LEFT);
+            posPlayer.y = startY - JUMP_HEIGHT;
+            bRising = false; // a partir de aqui cae con la gravedad normal
         }
         else
-        {
             posPlayer.y = int(startY - JUMP_HEIGHT * sin(3.14159f * jumpAngle / 180.f));
-            
-            // en baixada 8angle + de 90 graus) 
-            // comprovem si arriba a terra abans d'arribar a 180 graus
-            if(jumpAngle > 90)
+
+        // techo: si la cabeza entra en un tile solido, se recoloca debajo y empieza a caer
+        int freeY = posPlayer.y;
+        if(map->collisionMoveUp(hitboxPos(), hbSize, &posPlayer.y))
+        {
+            // si solo roza la esquina del techo, se le empuja de lado hacia el hueco
+            posPlayer.y = freeY;
+            if(!nudgeHorizontal())
             {
-                if(map->collisionMoveDown(hitboxPos(), glm::ivec2(HITBOX_WIDTH, HITBOX_HEIGHT), &posPlayer.y))
-                {
-                    bJumping = false;
-                    sprite->changeAnimation(lookingRight ? STAND_RIGHT : STAND_LEFT);
-                }
+                map->collisionMoveUp(hitboxPos(), hbSize, &posPlayer.y);
+                bRising = false;
             }
         }
+
+        bOnGround = false;
     }
     else
     {
-		posPlayer.y += FALL_STEP;
-        
-        // si collisionMoveDown retorna false, vol dir que no està tocant terra i per tant està caient
-        if(!map->collisionMoveDown(hitboxPos(), glm::ivec2(HITBOX_WIDTH, HITBOX_HEIGHT), &posPlayer.y))
+        // caida: la misma velocidad tanto si viene de un salto como si no
+        posPlayer.y += FALL_STEP;
+        bOnGround = map->collisionMoveDown(hitboxPos(), hbSize, &posPlayer.y);
+
+        if(bOnGround)
         {
-            // activar anim de caiguda
-            int fallAnim = lookingRight ? JUMP_FALL_RIGHT : JUMP_FALL_LEFT;
-            if(sprite->animation() != fallAnim)
-                sprite->changeAnimation(fallAnim);
-        }
-        else // si toca terra
-        {
+            bJumping = false;
             if(Game::instance().getKey(GLFW_KEY_UP))
             {
                 bJumping = true;
+                bRising = true;
+                bOnGround = false;
                 jumpAngle = 0;
                 startY = posPlayer.y;
-                
-                // activar anim de pujada
-                sprite->changeAnimation(lookingRight ? JUMP_UP_RIGHT : JUMP_UP_LEFT);
-            }
-            else
-            {
-                // si acaba de caure, canviar animació a STAND
-                if(sprite->animation() == JUMP_FALL_LEFT || sprite->animation() == JUMP_FALL_RIGHT ||
-                   sprite->animation() == JUMP_UP_LEFT || sprite->animation() == JUMP_UP_RIGHT)
-                {
-                    sprite->changeAnimation(lookingRight ? STAND_RIGHT : STAND_LEFT);
-                }
             }
         }
     }
+
+    // --- ANIMACION ---
+    int targetAnim = -1;
+    if(bRising)
+        targetAnim = lookingRight ? JUMP_UP_RIGHT : JUMP_UP_LEFT;
+    else if(!bOnGround)
+        targetAnim = lookingRight ? JUMP_FALL_RIGHT : JUMP_FALL_LEFT;
+    else if(sprite->animation() == JUMP_FALL_LEFT || sprite->animation() == JUMP_FALL_RIGHT ||
+            sprite->animation() == JUMP_UP_LEFT || sprite->animation() == JUMP_UP_RIGHT)
+        targetAnim = lookingRight ? STAND_RIGHT : STAND_LEFT; // acaba de aterrizar
+    
+    if(targetAnim != -1 && sprite->animation() != targetAnim)
+        sprite->changeAnimation(targetAnim);
     
     sprite->setPosition(glm::vec2(float(tileMapDispl.x + posPlayer.x), float(tileMapDispl.y + posPlayer.y)));
+}
+
+
+bool Player::nudgeHorizontal()
+{
+    glm::ivec2 hbSize(HITBOX_WIDTH, HITBOX_HEIGHT);
+    for(int d = 1; d <= CORNER_TOLERANCE; d++)
+        for(int s = -1; s <= 1; s += 2)
+            if(!map->collisionBox(hitboxPos() + glm::ivec2(s * d, 0), hbSize))
+            {
+                posPlayer.x += s * d;
+                return true;
+            }
+    return false;
+}
+
+// Correccion de esquina lateral: en el aire, si al chocar con una pared basta
+// con subir o bajar unos pixeles para entrar en un hueco, se hace.
+bool Player::nudgeVertical()
+{
+    glm::ivec2 hbSize(HITBOX_WIDTH, HITBOX_HEIGHT);
+    for(int d = 1; d <= CORNER_TOLERANCE; d++)
+        for(int s = -1; s <= 1; s += 2)
+            if(!map->collisionBox(hitboxPos() + glm::ivec2(0, s * d), hbSize))
+            {
+                posPlayer.y += s * d;
+                startY += s * d; // la subida del salto sigue la curva desde la nueva altura
+                return true;
+            }
+    return false;
+}
+
+void Player::kill()
+{
+    if(bDead)
+        return;
+    bDead = true;
+    bJumping = false;
+    bRising = false;
+    sprite->changeAnimation(DEATH);
+}
+
+void Player::respawn(const glm::vec2 &pos)
+{
+    bDead = false;
+    bJumping = false;
+    bRising = false;
+    bOnGround = false;
+    lookingRight = true;
+    sprite->changeAnimation(STAND_RIGHT);
+    setPosition(pos);
 }
 
 void Player::render()

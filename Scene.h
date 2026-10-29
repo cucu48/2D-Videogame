@@ -6,6 +6,9 @@
 #include "ShaderProgram.h"
 #include "TileMap.h"
 #include "Player.h"
+#include "Bomb.h"
+#include "Explosion.h"
+#include <vector>
 
 
 // Scene contains all the entities of our game.
@@ -23,12 +26,26 @@ public:
 	void update(int deltaTime);
 	void render(int windowWidth, int windowHeight);
 
+	// true si la caja (en pixeles del mapa) toca algun tile en llamas.
+	// Pensado tambien para los enemigos cuando se implementen.
+	bool isOnFire(const glm::ivec2 &pos, const glm::ivec2 &size) const;
+
 private:
 	void initShaders();
+	void placeBomb();
+	void explodeBomb(int index);
+	void addExplosion(const glm::ivec2 &tile, ExplosionPiece piece);
+	bool overlapsTile(const glm::ivec2 &pos, const glm::ivec2 &size, const glm::ivec2 &tile) const;
 
 private:
 	TileMap *map;
 	Player *player;
+	glm::vec2 spawnPos;
+	int deathTime;
+	bool bombKeyWasPressed;
+	Texture bombSheet, explosionSheet;
+	vector<Bomb *> bombs;
+	vector<Explosion *> explosions;
 	ShaderProgram texProgram;
 	float currentTime;
 	glm::mat4 projection;

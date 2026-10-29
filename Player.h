@@ -23,11 +23,22 @@ public:
 	
 	void setTileMap(TileMap *tileMap);
 	void setPosition(const glm::vec2 &pos);
+
+	glm::ivec2 hitboxPos() const;
+	glm::ivec2 hitboxSize() const;
+
+	void kill();
+	void respawn(const glm::vec2 &pos);
+	bool isDead() const { return bDead; }
 	
 private:
-	glm::ivec2 hitboxPos() const;
+	bool nudgeHorizontal();
+	bool nudgeVertical();
 	bool lookingRight;
-	bool bJumping;
+	bool bJumping;   // desde que despega hasta que vuelve a tocar suelo
+	bool bRising;    // solo la parte de subida del salto
+	bool bOnGround;
+	bool bDead;
 	glm::ivec2 tileMapDispl, posPlayer;
 	int jumpAngle, startY;
 	Texture spritesheet;
