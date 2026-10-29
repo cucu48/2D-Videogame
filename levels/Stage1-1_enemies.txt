@@ -1,0 +1,8 @@
+# Enemigos de Stage1-1
+# tipo columna fila direccion
+# tipos (fila de images/enemies.png): 0 rosa, 1 amarillo, 2 verde, 3 naranja, 4 negro, 5 azul, 6 rosa con pico
+1 11 13 -1
+6 6 7 1
+2 3 4 1
+5 8 2 1
+0 11 10 1

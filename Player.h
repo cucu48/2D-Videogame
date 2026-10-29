@@ -30,6 +30,7 @@ public:
 	void kill();
 	void respawn(const glm::vec2 &pos);
 	bool isDead() const { return bDead; }
+	bool isInvulnerable() const { return invulnerableTime > 0; }
 	
 private:
 	bool nudgeHorizontal();
@@ -39,6 +40,7 @@ private:
 	bool bRising;    // solo la parte de subida del salto
 	bool bOnGround;
 	bool bDead;
+	int invulnerableTime; // tras reaparecer, un rato sin poder morir (parpadea)
 	glm::ivec2 tileMapDispl, posPlayer;
 	int jumpAngle, startY;
 	Texture spritesheet;

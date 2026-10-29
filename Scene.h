@@ -8,6 +8,7 @@
 #include "Player.h"
 #include "Bomb.h"
 #include "Explosion.h"
+#include "Enemy.h"
 #include <vector>
 
 
@@ -32,6 +33,7 @@ public:
 
 private:
 	void initShaders();
+	void loadEnemies(const string &enemiesFile);
 	void placeBomb();
 	void explodeBomb(int index);
 	void addExplosion(const glm::ivec2 &tile, ExplosionPiece piece);
@@ -43,7 +45,8 @@ private:
 	glm::vec2 spawnPos;
 	int deathTime;
 	bool bombKeyWasPressed;
-	Texture bombSheet, explosionSheet;
+	Texture bombSheet, explosionSheet, enemySheet;
+	vector<Enemy *> enemies;
 	vector<Bomb *> bombs;
 	vector<Explosion *> explosions;
 	ShaderProgram texProgram;

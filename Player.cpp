@@ -11,6 +11,7 @@
 #define HITBOX_OFFSET_X 4
 #define HITBOX_WIDTH 24
 #define HITBOX_HEIGHT 32
+#define INVULNERABLE_TIME 2000
 #define CORNER_TOLERANCE 8 // px que se puede empujar al jugador para colarse por un hueco
 
 
@@ -51,6 +52,7 @@ void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
 	bRising = false;
 	bOnGround = false;
 	bDead = false;
+	invulnerableTime = 0;
 	spritesheet.loadFromFile("images/player.png", TEXTURE_PIXEL_FORMAT_RGBA);
 	sprite = Sprite::createSprite(glm::ivec2(32, 32), glm::vec2(0.25, 0.25), &spritesheet, &shaderProgram);
 	sprite->setNumberAnimations(9);
@@ -103,6 +105,8 @@ void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
 void Player::update(int deltaTime)
 {
     sprite->update(deltaTime);
+    if(invulnerableTime > 0)
+        invulnerableTime -= deltaTime;
 
     // muerto: solo se reproduce la animacion de muerte, sin control ni gravedad
     if(bDead)
@@ -258,12 +262,16 @@ void Player::respawn(const glm::vec2 &pos)
     bRising = false;
     bOnGround = false;
     lookingRight = true;
+    invulnerableTime = INVULNERABLE_TIME;
     sprite->changeAnimation(STAND_RIGHT);
     setPosition(pos);
 }
 
 void Player::render()
 {
+	// mientras es invulnerable, parpadea (se dibuja 100 ms si, 100 ms no)
+	if(invulnerableTime > 0 && (invulnerableTime / 100) % 2 == 0)
+		return;
 	sprite->render();
 }
 

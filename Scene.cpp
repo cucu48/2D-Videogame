@@ -4,6 +4,8 @@
 #include "Scene.h"
 #include "Game.h"
 #include <algorithm>
+#include <fstream>
+#include <sstream>
 
 
 
@@ -29,6 +31,8 @@ Scene::~Scene()
 		delete bombs[i];
 	for(size_t i = 0; i < explosions.size(); i++)
 		delete explosions[i];
+	for(size_t i = 0; i < enemies.size(); i++)
+		delete enemies[i];
 }
 
 
@@ -48,6 +52,10 @@ void Scene::init()
 	explosionSheet.loadFromFile("images/explosion.png", TEXTURE_PIXEL_FORMAT_RGBA);
 	explosionSheet.setMinFilter(GL_NEAREST);
 	explosionSheet.setMagFilter(GL_NEAREST);
+	enemySheet.loadFromFile("images/enemies.png", TEXTURE_PIXEL_FORMAT_RGBA);
+	enemySheet.setMinFilter(GL_NEAREST);
+	enemySheet.setMagFilter(GL_NEAREST);
+	loadEnemies("levels/Stage1-1_enemies.txt");
 	deathTime = 0;
 	bombKeyWasPressed = false;
 	glm::vec2 mapPx = glm::vec2(map->getMapSize()) * float(map->getTileSize());
@@ -98,8 +106,34 @@ void Scene::update(int deltaTime)
 			i++;
 	}
 
+	// Enemigos: se mueven, mueren con el fuego y matan al jugador si le tocan
+	for(size_t i = 0; i < enemies.size(); )
+	{
+		Enemy *enemy = enemies[i];
+		enemy->update(deltaTime);
+		if(!enemy->isDying() && isOnFire(enemy->hitboxPos(), enemy->hitboxSize()))
+			enemy->kill();
+		if(!enemy->isDying() && !player->isDead() && !player->isInvulnerable())
+		{
+			glm::ivec2 pp = player->hitboxPos(), ps = player->hitboxSize();
+			glm::ivec2 ep = enemy->hitboxPos(), es = enemy->hitboxSize();
+			if(pp.x < ep.x + es.x && pp.x + ps.x > ep.x && pp.y < ep.y + es.y && pp.y + ps.y > ep.y)
+			{
+				player->kill();
+				deathTime = 0;
+			}
+		}
+		if(enemy->isGone())
+		{
+			delete enemy;
+			enemies.erase(enemies.begin() + i);
+		}
+		else
+			i++;
+	}
+
 	// Damage to player
-	if(!player->isDead() && isOnFire(player->hitboxPos(), player->hitboxSize()))
+	if(!player->isDead() && !player->isInvulnerable() && isOnFire(player->hitboxPos(), player->hitboxSize()))
 	{
 		player->kill();
 		deathTime = 0;
@@ -109,6 +143,33 @@ void Scene::update(int deltaTime)
 		deathTime += deltaTime;
 		if(deathTime >= RESPAWN_TIME)
 			player->respawn(spawnPos);
+	}
+}
+
+// Lee los enemigos del nivel. Formato (una linea por enemigo):
+//   tipo columna fila direccion
+// tipo = fila de images/enemies.png (0-6), direccion = -1 izquierda / 1 derecha.
+// Las lineas que empiezan por # son comentarios.
+void Scene::loadEnemies(const string &enemiesFile)
+{
+	ifstream fin(enemiesFile.c_str());
+	if(!fin.is_open())
+		return;
+	string line;
+	while(getline(fin, line))
+	{
+		if(line.empty() || line[0] == '#')
+			continue;
+		stringstream ss(line);
+		int type, col, row, dir;
+		if(!(ss >> type >> col >> row >> dir) || type < 0 || type > 6)
+			continue;
+		Enemy *enemy = new Enemy();
+		enemy->init(type, glm::ivec2(0, 0), &enemySheet, texProgram);
+		enemy->setTileMap(map);
+		enemy->setPosition(glm::ivec2(col, row) * map->getTileSize());
+		enemy->setDirection(dir);
+		enemies.push_back(enemy);
 	}
 }
 
@@ -188,6 +249,8 @@ void Scene::render(int windowWidth, int windowHeight)
 	map->render();
 	for(size_t i = 0; i < bombs.size(); i++)
 		bombs[i]->render();
+	for(size_t i = 0; i < enemies.size(); i++)
+		enemies[i]->render();
 	for(size_t i = 0; i < explosions.size(); i++)
 		explosions[i]->render();
 	player->render();
