@@ -35,6 +35,7 @@ public:
 
 private:
 	void loadLevel();
+	void updateCamera();
 	void cleanup();
 	void loadEnemies(const string &enemiesFile);
 	void placeBomb();
@@ -55,6 +56,7 @@ private:
 	vector<Explosion *> explosions;
 	float currentTime;
 	glm::mat4 projection;
+	glm::vec2 camera;               // esquina superior izquierda de la vista, en pixeles del mapa
 
 };
 

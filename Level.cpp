@@ -12,6 +12,8 @@
 #define INIT_PLAYER_X_TILES 4
 #define MAX_BOMBS 1
 #define RESPAWN_TIME 2000
+#define VIEW_W 320
+#define VIEW_H 288
 
 
 Level::Level(int number)
@@ -80,8 +82,7 @@ void Level::loadLevel()
 	loadEnemies(stage + "_enemies.txt");
 	deathTime = 0;
 	bombKeyWasPressed = false;
-	glm::vec2 mapPx = glm::vec2(map->getMapSize()) * float(map->getTileSize());
-	projection = glm::ortho(0.f, mapPx.x, mapPx.y, 0.f);
+	updateCamera();
 	currentTime = 0.0f;
 }
 
@@ -164,6 +165,27 @@ void Level::update(int deltaTime)
 		deathTime += deltaTime;
 		if(deathTime >= RESPAWN_TIME)
 			player->respawn(spawnPos);
+	}
+
+	updateCamera();
+}
+
+// Centra la camara en el jugador sin salirse del mapa. Si el mapa es mas
+// pequeno que la vista en un eje, lo centra en ese eje.
+void Level::updateCamera()
+{
+	glm::vec2 mapPx = glm::vec2(map->getMapSize()) * float(map->getTileSize());
+	glm::vec2 viewPx(VIEW_W, VIEW_H);
+	glm::vec2 target = glm::vec2(player->hitboxPos()) + glm::vec2(player->hitboxSize()) / 2.f;
+
+	for(int axis = 0; axis < 2; axis++)
+	{
+		float range = mapPx[axis] - viewPx[axis];
+		if(range <= 0.f)
+			camera[axis] = range / 2.f;
+		else
+			camera[axis] = glm::clamp(target[axis] - viewPx[axis] / 2.f, 0.f, range);
+		camera[axis] = std::floor(camera[axis]);
 	}
 }
 
@@ -254,8 +276,8 @@ bool Level::overlapsTile(const glm::ivec2 &pos, const glm::ivec2 &size, const gl
 
 void Level::render(int windowWidth, int windowHeight)
 {
-	glm::vec2 mapPx = glm::vec2(map->getMapSize()) * float(map->getTileSize());
-	projection = setLetterboxViewport(windowWidth, windowHeight, int(mapPx.x), int(mapPx.y));
+	setLetterboxViewport(windowWidth, windowHeight, VIEW_W, VIEW_H);
+	projection = glm::ortho(camera.x, camera.x + VIEW_W, camera.y + VIEW_H, camera.y);
 
 	glm::mat4 modelview;
 
