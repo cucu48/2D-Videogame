@@ -4,57 +4,38 @@
 
 #include <glm/glm.hpp>
 #include "ShaderProgram.h"
-#include "TileMap.h"
-#include "Player.h"
-#include "Bomb.h"
-#include "Explosion.h"
-#include "Enemy.h"
-#include <vector>
 
 
-// Scene contains all the entities of our game.
-// It is responsible for updating and render them.
+// Scene is the interface every screen of the game implements
+// (main menu, level selector and the levels themselves).
+// Game keeps a vector of them and forwards update/render/input to the current one.
 
 
 class Scene
 {
 
 public:
-	Scene();
-	~Scene();
+	virtual ~Scene() {}
 
-	void init();
-	void update(int deltaTime);
-	void render(int windowWidth, int windowHeight);
+	virtual void init() = 0;                        // creates GL resources, called once at startup
+	virtual void onEnter() {}                       // called every time the scene becomes the current one
+	virtual void update(int deltaTime) = 0;
+	virtual void render(int windowWidth, int windowHeight) = 0;
+	virtual void keyPressed(int /*key*/) {}             // one call per key press (no auto repeat)
+	virtual void mouseMove(int /*x*/, int /*y*/) {}     // x, y in window pixels, origin at the top-left
+	virtual void mousePress(int /*button*/) {}          // GLFW_MOUSE_BUTTON_*
+	virtual void mouseRelease(int /*button*/) {}
 
-	// true si la caja (en pixeles del mapa) toca algun tile en llamas.
-	// Pensado tambien para los enemigos cuando se implementen.
-	bool isOnFire(const glm::ivec2 &pos, const glm::ivec2 &size) const;
+protected:
+	// Sets a viewport of virtualWidth x virtualHeight (keeping its aspect ratio)
+	// centered in the window and returns the matching pixel projection.
+	static glm::mat4 setLetterboxViewport(int windowWidth, int windowHeight, int virtualWidth, int virtualHeight);
 
-private:
-	void initShaders();
-	void loadEnemies(const string &enemiesFile);
-	void placeBomb();
-	void explodeBomb(int index);
-	void addExplosion(const glm::ivec2 &tile, ExplosionPiece piece);
-	bool overlapsTile(const glm::ivec2 &pos, const glm::ivec2 &size, const glm::ivec2 &tile) const;
-
-private:
-	TileMap *map;
-	Player *player;
-	glm::vec2 spawnPos;
-	int deathTime;
-	bool bombKeyWasPressed;
-	Texture bombSheet, explosionSheet, enemySheet;
-	vector<Enemy *> enemies;
-	vector<Bomb *> bombs;
-	vector<Explosion *> explosions;
-	ShaderProgram texProgram;
-	float currentTime;
-	glm::mat4 projection;
+	// Converts a window position (pixels) to the virtual screen drawn by setLetterboxViewport.
+	// Returns false if the position falls on the black bars.
+	static bool windowToVirtual(int x, int y, int windowWidth, int windowHeight, int virtualWidth, int virtualHeight, glm::vec2 &result);
 
 };
 
 
 #endif // _SCENE_INCLUDE
-

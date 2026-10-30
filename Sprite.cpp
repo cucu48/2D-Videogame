@@ -32,6 +32,7 @@ Sprite::Sprite(const glm::vec2 &quadSize, const glm::vec2 &sizeInSpritesheet, Te
 	shaderProgram = program;
 	currentAnimation = -1;
 	position = glm::vec2(0.f);
+	texCoordDispl = glm::vec2(0.f);
 }
 
 Sprite::~Sprite()

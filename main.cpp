@@ -21,6 +21,16 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
+	// The cursor comes in window coordinates, Game works in framebuffer pixels
+	// (they differ on scaled displays)
+	int winWidth, winHeight, fbWidth, fbHeight;
+	glfwGetWindowSize(window, &winWidth, &winHeight);
+	glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+	if(winWidth > 0 && winHeight > 0)
+	{
+		xpos *= double(fbWidth) / winWidth;
+		ypos *= double(fbHeight) / winHeight;
+	}
 	Game::instance().mouseMove(int(xpos), int(ypos));
 }
 
