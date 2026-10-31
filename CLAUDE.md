@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-"Pocket Bomberman": a Game Boy-style Bomberman clone in C++11 with OpenGL 3 (GLEW, GLFW, GLM, SOIL). Code comments are a mix of English and Spanish; match whichever the surrounding file uses. There are no tests and no linter.
+"Pocket Bomberman": a Game Boy-style Bomberman clone in C++11 with OpenGL 3 (GLEW, GLFW, GLM, SOIL, FreeType). Code comments are a mix of English and Spanish; match whichever the surrounding file uses. There are no tests and no linter.
 
 ## Commands
 
@@ -33,7 +33,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Collision between entities is done here, using hitbox AABB overlap against explosion tiles (`isOnFire`).
 - Bombs start passable. `Level::update` turns one solid with `TileMap::setBlocked` once the player's hitbox leaves its tile, and unblocks the tile when it explodes.
 - Explosions are one tile in each of 4 directions, and walls (`TileMap::isWall`) stop them.
-- `MAX_BOMBS` is 1. Z places a bomb, and the player respawns after `RESPAWN_TIME`.
+- `maxBombs` (default `DEFAULT_MAX_BOMBS`) limits simultaneous bombs and `blastRange` is how many tiles each explosion arm reaches (a wall stops it). Z places a bomb, and the player respawns after `RESPAWN_TIME`.
+- Player damage goes through `Level::hurtPlayer()`: a heart (`Player::hasHeart`, toggled with H until pickups exist) absorbs the hit and starts the blinking immunity, otherwise the player dies and `lives` drops (floor 0; game over is not implemented yet). `timeLeft` counts down from 4 minutes and nothing happens at 0 yet.
+- The level's virtual screen is the 320x288 playfield plus a 320x16 HUD strip below it. `Level::render` splits the letterboxed viewport in two and draws `Hud` in the bottom one.
+
+**Hud (`Hud.h/.cpp`).** Draws `images/HUD.png` and the values Level puts in a `HudState` (time `M:SS`, heart, lives, enemies left, max bombs, blast range; each one clamped to a digit). Text uses `Text` (FreeType atlas from `images/bytebounce.medium.ttf`, shaders `shaders/text.*`, quads through `TexturedQuad`). `Text` takes its pixel space from `setProjection`.
 
 **Entities.** `Player` and `Enemy` use a `Sprite`, which animates from `AnimKeyframes` over a spritesheet `Texture`. Both are platformer-style: gravity, jumping, and collision against `TileMap` through `collisionMove*` / `collisionBox`. `Enemy` has three behaviours (WALKER, JUMPER, FLYER) selected by `type`, which is the row of `images/enemies.png` (types 0-6).
 

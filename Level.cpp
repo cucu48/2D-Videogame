@@ -10,7 +10,10 @@
 
 
 #define INIT_PLAYER_X_TILES 4
-#define MAX_BOMBS 1
+#define DEFAULT_MAX_BOMBS 5
+#define DEFAULT_BLAST_RANGE 1
+#define START_LIVES 2
+#define LEVEL_TIME 240000 // 4 minutes
 #define RESPAWN_TIME 2000
 #define VIEW_W 320
 #define VIEW_H 288
@@ -59,6 +62,7 @@ void Level::init()
 	enemySheet.loadFromFile("images/enemies.png", TEXTURE_PIXEL_FORMAT_RGBA);
 	enemySheet.setMinFilter(GL_NEAREST);
 	enemySheet.setMagFilter(GL_NEAREST);
+	hud.init();
 	loadLevel();
 }
 
@@ -84,11 +88,16 @@ void Level::loadLevel()
 	bombKeyWasPressed = false;
 	updateCamera();
 	currentTime = 0.0f;
+	timeLeft = LEVEL_TIME;
+	lives = START_LIVES;
+	maxBombs = DEFAULT_MAX_BOMBS;
+	blastRange = DEFAULT_BLAST_RANGE;
 }
 
 void Level::update(int deltaTime)
 {
 	currentTime += deltaTime;
+	timeLeft = std::max(0, timeLeft - deltaTime);
 	player->update(deltaTime);
 
 	// Z: place bomb
@@ -141,8 +150,7 @@ void Level::update(int deltaTime)
 			glm::ivec2 ep = enemy->hitboxPos(), es = enemy->hitboxSize();
 			if(pp.x < ep.x + es.x && pp.x + ps.x > ep.x && pp.y < ep.y + es.y && pp.y + ps.y > ep.y)
 			{
-				player->kill();
-				deathTime = 0;
+				hurtPlayer();
 			}
 		}
 		if(enemy->isGone())
@@ -157,8 +165,7 @@ void Level::update(int deltaTime)
 	// Damage to player
 	if(!player->isDead() && !player->isInvulnerable() && isOnFire(player->hitboxPos(), player->hitboxSize()))
 	{
-		player->kill();
-		deathTime = 0;
+		hurtPlayer();
 	}
 	if(player->isDead())
 	{
@@ -215,10 +222,32 @@ void Level::loadEnemies(const string &enemiesFile)
 		enemies.push_back(enemy);
 	}
 }
+//TODO Debug only. Remove later.
+void Level::keyPressed(int key)
+{
+	if(key == GLFW_KEY_H)
+		player->setHeart(!player->hasHeart());
+}
+
+// The heart absorbs one hit (the player blinks, immune, like after respawning). Without it the player dies.
+void Level::hurtPlayer()
+{
+	if(player->hasHeart())
+	{
+		player->setHeart(false);
+		player->startInvulnerable();
+		return;
+	}
+	player->kill();
+	deathTime = 0;
+	if(lives > 0)
+		lives--;
+	// TODO game over when the player dies with no lives left
+}
 
 void Level::placeBomb()
 {
-	if(int(bombs.size()) >= MAX_BOMBS)
+	if(int(bombs.size()) >= maxBombs)
 		return;
 
 	// tile donde esta el centro del jugador
@@ -233,6 +262,7 @@ void Level::placeBomb()
 	bombs.push_back(bomb);
 }
 
+//TODO Rewrite when fire UP.
 void Level::explodeBomb(int index)
 {
 	glm::ivec2 tile = bombs[index]->getTile();
@@ -276,7 +306,12 @@ bool Level::overlapsTile(const glm::ivec2 &pos, const glm::ivec2 &size, const gl
 
 void Level::render(int windowWidth, int windowHeight)
 {
-	setLetterboxViewport(windowWidth, windowHeight, VIEW_W, VIEW_H);
+	// The virtual screen is the playfield with the HUD strip below it: split the letterboxed viewport
+	setLetterboxViewport(windowWidth, windowHeight, VIEW_W, VIEW_H + HUD_HEIGHT);
+	int vp[4];
+	glGetIntegerv(GL_VIEWPORT, vp);
+	int hudPx = int(vp[3] * float(HUD_HEIGHT) / (VIEW_H + HUD_HEIGHT) + 0.5f);
+	glViewport(vp[0], vp[1] + hudPx, vp[2], vp[3] - hudPx);
 	projection = glm::ortho(camera.x, camera.x + VIEW_W, camera.y + VIEW_H, camera.y);
 
 	glm::mat4 modelview;
@@ -296,5 +331,15 @@ void Level::render(int windowWidth, int windowHeight)
 	for(size_t i = 0; i < explosions.size(); i++)
 		explosions[i]->render();
 	player->render();
+
+	glViewport(vp[0], vp[1], vp[2], hudPx);
+	HudState state;
+	state.secondsLeft = (timeLeft + 999) / 1000;
+	state.hasHeart = player->hasHeart();
+	state.lives = lives;
+	state.enemiesLeft = int(enemies.size());
+	state.maxBombs = maxBombs;
+	state.blastRange = blastRange;
+	hud.render(state);
 }
 

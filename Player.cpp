@@ -52,6 +52,7 @@ void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
 	bRising = false;
 	bOnGround = false;
 	bDead = false;
+	bHeart = false;
 	invulnerableTime = 0;
 	spritesheet.loadFromFile("images/player.png", TEXTURE_PIXEL_FORMAT_RGBA);
 	sprite = Sprite::createSprite(glm::ivec2(32, 32), glm::vec2(0.25, 0.25), &spritesheet, &shaderProgram);
@@ -262,9 +263,14 @@ void Player::respawn(const glm::vec2 &pos)
     bRising = false;
     bOnGround = false;
     lookingRight = true;
-    invulnerableTime = INVULNERABLE_TIME;
+    startInvulnerable();
     sprite->changeAnimation(STAND_RIGHT);
     setPosition(pos);
+}
+
+void Player::startInvulnerable()
+{
+	invulnerableTime = INVULNERABLE_TIME;
 }
 
 void Player::render()

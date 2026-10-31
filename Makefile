@@ -2,9 +2,9 @@ BUILD_DIR := build
 TARGET := $(BUILD_DIR)/game
 
 CXX ?= g++
-CPPFLAGS += $(shell pkg-config --cflags glew 2>/dev/null)
+CPPFLAGS += $(shell pkg-config --cflags glew freetype2 2>/dev/null)
 CXXFLAGS ?= -std=c++11 -Wall -Wextra -Wpedantic -O0 -g
-LDLIBS += $(shell pkg-config --libs glew 2>/dev/null) -lglfw -lSOIL
+LDLIBS += $(shell pkg-config --libs glew freetype2 2>/dev/null) -lglfw -lSOIL
 
 SOURCES := $(wildcard *.cpp)
 OBJECTS := $(SOURCES:%.cpp=$(BUILD_DIR)/%.o)
@@ -30,4 +30,4 @@ clean:
 -include $(DEPS)
 
 install-debian:
-	sudo apt install build-essential pkg-config libglew-dev libglfw3-dev libglm-dev libsoil-dev libgl1-mesa-dev mesa-utils
+	sudo apt install build-essential pkg-config libglew-dev libglfw3-dev libglm-dev libsoil-dev libgl1-mesa-dev mesa-utils libfreetype-dev

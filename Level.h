@@ -10,6 +10,7 @@
 #include "Bomb.h"
 #include "Explosion.h"
 #include "Enemy.h"
+#include "Hud.h"
 #include <vector>
 
 
@@ -28,6 +29,7 @@ public:
 	void onEnter();                  // restarts the stage
 	void update(int deltaTime);
 	void render(int windowWidth, int windowHeight);
+	void keyPressed(int key);        // H toggles the heart power-up (debug until pickups exist)
 
 	// true si la caja (en pixeles del mapa) toca algun tile en llamas.
 	// Pensado tambien para los enemigos cuando se implementen.
@@ -39,6 +41,7 @@ private:
 	void cleanup();
 	void loadEnemies(const string &enemiesFile);
 	void placeBomb();
+	void hurtPlayer();               // the heart absorbs the hit, otherwise the player dies
 	void explodeBomb(int index);
 	void addExplosion(const glm::ivec2 &tile, ExplosionPiece piece);
 	bool overlapsTile(const glm::ivec2 &pos, const glm::ivec2 &size, const glm::ivec2 &tile) const;
@@ -55,6 +58,11 @@ private:
 	vector<Bomb *> bombs;
 	vector<Explosion *> explosions;
 	float currentTime;
+	int timeLeft;                   // ms
+	int lives;
+	int maxBombs;                   // bombs that can be on the map at the same time
+	int blastRange;                 // tiles the explosion reaches in each direction
+	Hud hud;
 	glm::mat4 projection;
 	glm::vec2 camera;               // esquina superior izquierda de la vista, en pixeles del mapa
 
