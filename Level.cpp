@@ -101,7 +101,7 @@ void Level::update(int deltaTime)
 	player->update(deltaTime);
 
 	// Z: place bomb
-	bool bombKey = Game::instance().getKey(GLFW_KEY_Z);
+	bool bombKey = Game::instance().getKey(GLFW_KEY_F);
 	if(bombKey && !bombKeyWasPressed && !player->isDead())
 		placeBomb();
 	bombKeyWasPressed = bombKey;

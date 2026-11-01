@@ -33,7 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Collision between entities is done here, using hitbox AABB overlap against explosion tiles (`isOnFire`).
 - Bombs start passable. `Level::update` turns one solid with `TileMap::setBlocked` once the player's hitbox leaves its tile, and unblocks the tile when it explodes.
 - Explosions are one tile in each of 4 directions, and walls (`TileMap::isWall`) stop them.
-- `maxBombs` (default `DEFAULT_MAX_BOMBS`) limits simultaneous bombs and `blastRange` is how many tiles each explosion arm reaches (a wall stops it). Z places a bomb, and the player respawns after `RESPAWN_TIME`.
+- `maxBombs` (default `DEFAULT_MAX_BOMBS`) limits simultaneous bombs and `blastRange` is how many tiles each explosion arm reaches (a wall stops it). F places a bomb, and the player respawns after `RESPAWN_TIME`.
 - Player damage goes through `Level::hurtPlayer()`: a heart (`Player::hasHeart`, toggled with H until pickups exist) absorbs the hit and starts the blinking immunity, otherwise the player dies and `lives` drops (floor 0; game over is not implemented yet). `timeLeft` counts down from 4 minutes and nothing happens at 0 yet.
 - The level's virtual screen is the 320x288 playfield plus a 320x16 HUD strip below it. `Level::render` splits the letterboxed viewport in two and draws `Hud` in the bottom one.
 
