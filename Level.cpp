@@ -18,6 +18,11 @@
 #define VIEW_H 288
 #define CLEAR_TIME 2500     // ms showing "WORLD CLEAR!!" before the next level
 #define GAME_OVER_TIME 3000 // ms showing "GAME OVER" before going back to the menu
+#define TRENT_TYPE 9          // en el fichero de enemigos, el tipo 9 es el jefe Trent
+#define BUBBLE_SPEED 1.5f
+#define SPORE_SPEED 2.f
+#define BOMB_RAIN_RANGE 4
+#define BOMB_RAIN_FUSE 2000
 
 
 Level::Level(int number)
@@ -25,6 +30,7 @@ Level::Level(int number)
 	this->number = number;
 	map = NULL;
 	player = NULL;
+	boss = NULL;
 	clearSprite = NULL;
 	gameOverSprite = NULL;
 }
@@ -56,6 +62,12 @@ void Level::cleanup()
 	for(size_t i = 0; i < enemies.size(); i++)
 		delete enemies[i];
 	enemies.clear();
+	for(size_t i = 0; i < projectiles.size(); i++)
+		delete projectiles[i];
+	projectiles.clear();
+	if(boss != NULL)
+		delete boss;
+	boss = NULL;
 }
 
 void Level::init()
@@ -104,7 +116,7 @@ void Level::loadLevel()
 	player->setTileMap(map);
 	bHasDoor = false;
 	loadEnemies(stage + "_enemies.txt");
-	initialEnemies = int(enemies.size());
+	initialEnemies = int(enemies.size()) + (boss != NULL ? 1 : 0);
 	state = LEVEL_PLAYING;
 	stateTime = 0;
 	deathTime = 0;
@@ -171,30 +183,9 @@ void Level::update(int deltaTime)
 			i++;
 	}
 
-	// Enemigos: se mueven, mueren con el fuego y matan al jugador si le tocan
-	for(size_t i = 0; i < enemies.size(); )
-	{
-		Enemy *enemy = enemies[i];
-		enemy->update(deltaTime);
-		if(!enemy->isDying() && isOnFire(enemy->hitboxPos(), enemy->hitboxSize()))
-			enemy->kill();
-		if(!enemy->isDying() && !player->isDead() && !player->isInvulnerable())
-		{
-			glm::ivec2 pp = player->hitboxPos(), ps = player->hitboxSize();
-			glm::ivec2 ep = enemy->hitboxPos(), es = enemy->hitboxSize();
-			if(pp.x < ep.x + es.x && pp.x + ps.x > ep.x && pp.y < ep.y + es.y && pp.y + ps.y > ep.y)
-			{
-				hurtPlayer();
-			}
-		}
-		if(enemy->isGone())
-		{
-			delete enemy;
-			enemies.erase(enemies.begin() + i);
-		}
-		else
-			i++;
-	}
+	updateEnemies(deltaTime);
+	updateBoss(deltaTime);
+	updateProjectiles(deltaTime);
 
 	// Damage to player
 	if(!player->isDead() && !player->isInvulnerable() && isOnFire(player->hitboxPos(), player->hitboxSize()))
@@ -202,7 +193,7 @@ void Level::update(int deltaTime)
 		hurtPlayer();
 	}
 	// Se acaba el tiempo: el jugador muere (el corazon no le salva)
-	if(timeLeft == 0 && !player->isDead())
+	if(timeLeft == 0 && !player->isDead() && !Game::instance().isGodMode())
 	{
 		player->kill();
 		deathTime = 0;
@@ -242,7 +233,180 @@ void Level::update(int deltaTime)
 // La puerta se abre cuando no queda ningun enemigo (ni siquiera desapareciendo)
 bool Level::isDoorOpen() const
 {
-	return enemies.empty();
+	return enemies.empty() && boss == NULL;
+}
+
+bool Level::touchesPlayer(const glm::ivec2 &pos, const glm::ivec2 &size) const
+{
+	if(player->isDead() || player->isInvulnerable())
+		return false;
+	glm::ivec2 pp = player->hitboxPos(), ps = player->hitboxSize();
+	return pp.x < pos.x + size.x && pp.x + ps.x > pos.x && pp.y < pos.y + size.y && pp.y + ps.y > pos.y;
+}
+
+// Enemigos: se mueven, mueren con el fuego y hacen dano al jugador si le tocan
+void Level::updateEnemies(int deltaTime)
+{
+	glm::ivec2 playerCenter = player->hitboxPos() + player->hitboxSize() / 2;
+	for(size_t i = 0; i < enemies.size(); )
+	{
+		Enemy *enemy = enemies[i];
+		enemy->update(deltaTime, playerCenter, !player->isDead());
+		if(!enemy->isDying() && isOnFire(enemy->hitboxPos(), enemy->hitboxSize()))
+			enemy->kill();
+		if(!enemy->isDying() && touchesPlayer(enemy->hitboxPos(), enemy->hitboxSize()))
+			hurtPlayer();
+
+		// rayo de Elekin Man
+		glm::ivec2 boxPos, boxSize;
+		if(enemy->attackBox(boxPos, boxSize) && touchesPlayer(boxPos, boxSize))
+			hurtPlayer();
+
+		// burbujas de Cloudy
+		glm::vec2 shotPos, shotDir;
+		if(enemy->takeShot(shotPos, shotDir))
+		{
+			Projectile *bubble = new Projectile();
+			bubble->init(BUBBLE, shotPos, shotDir * BUBBLE_SPEED, &enemySheet, Game::instance().getTexProgram());
+			projectiles.push_back(bubble);
+		}
+
+		if(enemy->isGone())
+		{
+			delete enemy;
+			enemies.erase(enemies.begin() + i);
+		}
+		else
+			i++;
+	}
+}
+
+// Trent: solo le hacen dano las explosiones de las bombas del jugador
+void Level::updateBoss(int deltaTime)
+{
+	if(boss == NULL)
+		return;
+	glm::ivec2 playerCenter = player->hitboxPos() + player->hitboxSize() / 2;
+	boss->update(deltaTime, playerCenter, !player->isDead());
+	if(!boss->isDying())
+	{
+		if(isOnFire(boss->hitboxPos(), boss->hitboxSize(), true) && boss->hit() && boss->isDying())
+		{
+			// al morir se lleva con el sus hojas y sus proyectiles
+			for(size_t i = 0; i < enemies.size(); i++)
+				enemies[i]->kill();
+			for(size_t i = 0; i < projectiles.size(); i++)
+				projectiles[i]->pop();
+		}
+		else if(touchesPlayer(boss->hitboxPos(), boss->hitboxSize()))
+			hurtPlayer();
+		bossAttack(boss->takeAttack());
+	}
+	if(boss->isGone())
+	{
+		delete boss;
+		boss = NULL;
+	}
+}
+
+void Level::bossAttack(TrentAttack attack)
+{
+	if(attack == TRENT_NO_ATTACK)
+		return;
+	ShaderProgram &texProgram = Game::instance().getTexProgram();
+	int tileSize = map->getTileSize();
+	glm::ivec2 pos = boss->getPosition();
+	glm::vec2 bottomCenter(pos.x + 32.f, pos.y + 64.f);
+
+	if(attack == TRENT_LEAVES)
+	{
+		// tres hojas que persiguen al jugador
+		const glm::ivec2 offsets[3] = { glm::ivec2(-32, 16), glm::ivec2(16, 40), glm::ivec2(64, 16) };
+		for(int i = 0; i < 3; i++)
+			addEnemy(LEAF, pos + offsets[i], (i == 0) ? -1 : 1);
+	}
+	else if(attack == TRENT_POLLEN)
+	{
+		// tres esporas hacia abajo: la del medio recta y las otras en diagonal
+		const glm::vec2 dirs[3] = { glm::vec2(-0.6f, 0.8f), glm::vec2(0.f, 1.f), glm::vec2(0.6f, 0.8f) };
+		for(int i = 0; i < 3; i++)
+		{
+			Projectile *spore = new Projectile();
+			spore->init(SPORE, bottomCenter, dirs[i] * SPORE_SPEED, &enemySheet, texProgram);
+			projectiles.push_back(spore);
+		}
+	}
+	else if(attack == TRENT_BOMB_RAIN)
+	{
+		// cuatro bombas en forma de T: tres en fila y una debajo de la del medio
+		const glm::vec2 offsets[4] = { glm::vec2(-2.f * tileSize, 0.f), glm::vec2(0.f, 0.f),
+		                               glm::vec2(2.f * tileSize, 0.f), glm::vec2(0.f, float(tileSize)) };
+		for(int i = 0; i < 4; i++)
+		{
+			glm::vec2 center = bottomCenter + glm::vec2(0.f, tileSize / 2.f) + offsets[i];
+			// si sale dentro de una pared, la baja hasta un hueco libre
+			for(int tries = 0; tries < 4 && map->collisionBox(glm::ivec2(center) - glm::ivec2(12, 12), glm::ivec2(24, 28)); tries++)
+				center.y += tileSize;
+			Projectile *bomb = new Projectile();
+			bomb->init(FALLING_BOMB, center, glm::vec2(0.f, 0.f), &bombSheet, texProgram);
+			projectiles.push_back(bomb);
+		}
+	}
+}
+
+// Burbujas, esporas y bombas que caen
+void Level::updateProjectiles(int deltaTime)
+{
+	int tileSize = map->getTileSize();
+	for(size_t i = 0; i < projectiles.size(); )
+	{
+		Projectile *p = projectiles[i];
+		p->update(deltaTime, map);
+		if(p->isHarmful() && touchesPlayer(p->hitboxPos(), p->hitboxSize()))
+		{
+			hurtPlayer();
+			p->pop();
+		}
+
+		// la bomba que cae se convierte en una bomba de verdad al tocar el suelo
+		if(p->getKind() == FALLING_BOMB && p->hasLanded())
+		{
+			glm::ivec2 center = p->hitboxPos() + p->hitboxSize() / 2;
+			glm::ivec2 tile(center.x / tileSize, center.y / tileSize);
+			bool occupied = map->isSolid(tile.x, tile.y);
+			for(size_t b = 0; b < bombs.size(); b++)
+				if(bombs[b]->getTile() == tile)
+					occupied = true;
+			if(!occupied)
+			{
+				Bomb *bomb = new Bomb();
+				bomb->init(tile, tileSize, glm::ivec2(0, 0), &bombSheet, Game::instance().getTexProgram());
+				bomb->setEnemyBomb(BOMB_RAIN_RANGE, true, BOMB_RAIN_FUSE);
+				bombs.push_back(bomb);
+			}
+			delete p;
+			projectiles.erase(projectiles.begin() + i);
+			continue;
+		}
+
+		if(p->isFinished())
+		{
+			delete p;
+			projectiles.erase(projectiles.begin() + i);
+		}
+		else
+			i++;
+	}
+}
+
+void Level::addEnemy(int type, const glm::ivec2 &pos, int dir)
+{
+	Enemy *enemy = new Enemy();
+	enemy->init(type, glm::ivec2(0, 0), &enemySheet, Game::instance().getTexProgram());
+	enemy->setTileMap(map);
+	enemy->setPosition(pos);
+	enemy->setDirection(dir);
+	enemies.push_back(enemy);
 }
 
 // El centro del jugador esta dentro del tile de la puerta
@@ -282,7 +446,9 @@ void Level::updateCamera()
 
 // Lee los enemigos del nivel. Formato (una linea por enemigo):
 //   tipo columna fila direccion
-// tipo = fila de images/enemies.png (0-6), direccion = -1 izquierda / 1 derecha.
+// tipo = 0-8 (ver Enemy.h) o 9 para el jefe Trent, direccion = -1 izquierda / 1 derecha.
+// La posicion es el tile donde estan los pies del enemigo (Trent ocupa 2x2 tiles
+// hacia abajo y a la derecha desde ahi).
 // Las lineas que empiezan por # son comentarios.
 // Una linea "DOOR columna fila" indica el tile de la puerta de salida. Si un
 // nivel no tiene puerta, se supera al eliminar a todos los enemigos.
@@ -305,14 +471,22 @@ void Level::loadEnemies(const string &enemiesFile)
 			continue;
 		}
 		int type, col, row, dir;
-		if(!(ss >> type >> col >> row >> dir) || type < 0 || type > 6)
+		if(!(ss >> type >> col >> row >> dir) || type < 0 || type > TRENT_TYPE)
 			continue;
-		Enemy *enemy = new Enemy();
-		enemy->init(type, glm::ivec2(0, 0), &enemySheet, Game::instance().getTexProgram());
-		enemy->setTileMap(map);
-		enemy->setPosition(glm::ivec2(col, row) * map->getTileSize());
-		enemy->setDirection(dir);
-		enemies.push_back(enemy);
+		int tileSize = map->getTileSize();
+		if(type == TRENT_TYPE)
+		{
+			if(boss != NULL)
+				continue;
+			boss = new Trent();
+			boss->init(glm::ivec2(0, 0), &enemySheet, Game::instance().getTexProgram());
+			boss->setTileMap(map);
+			boss->setPosition(glm::ivec2(col, row) * tileSize);
+			continue;
+		}
+		// los enemigos altos (Elekin Man) se colocan con los pies en el tile indicado
+		int height = (type == ELEKIN) ? 2 * tileSize : tileSize;
+		addEnemy(type, glm::ivec2(col * tileSize, (row + 1) * tileSize - height), dir);
 	}
 }
 //TODO Debug only. Remove later.
@@ -322,11 +496,29 @@ void Level::keyPressed(int key)
 		player->setHeart(!player->hasHeart());
 	if(key == GLFW_KEY_B)
 		player->toggleDance();
+	// G: modo dios, el jugador no puede morir
+	if(key == GLFW_KEY_G)
+	{
+		Game::instance().toggleGodMode();
+		cout << "Modo dios: " << (Game::instance().isGodMode() ? "activado" : "desactivado") << endl;
+	}
+	// K: mata a todos los enemigos del nivel (y al jefe) para abrir la puerta
+	if(key == GLFW_KEY_K && state == LEVEL_PLAYING)
+	{
+		for(size_t i = 0; i < enemies.size(); i++)
+			enemies[i]->kill();
+		if(boss != NULL)
+			boss->kill();
+		for(size_t i = 0; i < projectiles.size(); i++)
+			projectiles[i]->pop();
+	}
 }
 
 // The heart absorbs one hit (the player blinks, immune, like after respawning). Without it the player dies.
 void Level::hurtPlayer()
 {
+	if(Game::instance().isGodMode())
+		return;
 	if(player->hasHeart())
 	{
 		player->setHeart(false);
@@ -340,7 +532,11 @@ void Level::hurtPlayer()
 
 void Level::placeBomb()
 {
-	if(int(bombs.size()) >= maxBombs)
+	int playerBombs = 0;
+	for(size_t i = 0; i < bombs.size(); i++)
+		if(!bombs[i]->isEnemyBomb())
+			playerBombs++;
+	if(playerBombs >= maxBombs)
 		return;
 
 	// tile donde esta el centro del jugador
@@ -355,36 +551,59 @@ void Level::placeBomb()
 	bombs.push_back(bomb);
 }
 
-//TODO Rewrite when fire UP.
+// La explosion llega 'range' tiles en cada direccion (las bombas de Trent solo
+// en horizontal). Una pared corta el brazo y otra bomba en el camino explota tambien.
 void Level::explodeBomb(int index)
 {
-	glm::ivec2 tile = bombs[index]->getTile();
+	Bomb *bomb = bombs[index];
+	glm::ivec2 tile = bomb->getTile();
+	int range = bomb->isEnemyBomb() ? bomb->getRange() : blastRange;
+	bool horizontalOnly = bomb->isHorizontalOnly();
+	bool fromEnemy = bomb->isEnemyBomb();
 	map->setBlocked(tile.x, tile.y, false);
-	delete bombs[index];
+	delete bomb;
 	bombs.erase(bombs.begin() + index);
 
-	addExplosion(tile, EXPLOSION_CENTER);
-	addExplosion(tile + glm::ivec2(0, -1), EXPLOSION_UP);
-	addExplosion(tile + glm::ivec2(0, 1), EXPLOSION_DOWN);
-	addExplosion(tile + glm::ivec2(-1, 0), EXPLOSION_LEFT);
-	addExplosion(tile + glm::ivec2(1, 0), EXPLOSION_RIGHT);
+	addExplosion(tile, EXPLOSION_CENTER, fromEnemy);
+	const glm::ivec2 dirs[4] = { glm::ivec2(0, -1), glm::ivec2(0, 1), glm::ivec2(-1, 0), glm::ivec2(1, 0) };
+	const ExplosionPiece ends[4] = { EXPLOSION_UP, EXPLOSION_DOWN, EXPLOSION_LEFT, EXPLOSION_RIGHT };
+	for(int d = horizontalOnly ? 2 : 0; d < 4; d++)
+	{
+		ExplosionPiece mid = (d < 2) ? EXPLOSION_VMID : EXPLOSION_HMID;
+		for(int i = 1; i <= range; i++)
+		{
+			glm::ivec2 t = tile + dirs[d] * i;
+			if(!addExplosion(t, (i == range) ? ends[d] : mid, fromEnemy))
+				break;
+			bool hitBomb = false;
+			for(size_t b = 0; b < bombs.size(); b++)
+				if(bombs[b]->getTile() == t)
+				{
+					bombs[b]->detonate(); // explota en el siguiente frame
+					hitBomb = true;
+				}
+			if(hitBomb)
+				break;
+		}
+	}
 }
 
-void Level::addExplosion(const glm::ivec2 &tile, ExplosionPiece piece)
+bool Level::addExplosion(const glm::ivec2 &tile, ExplosionPiece piece, bool fromEnemy)
 {
 	if(piece != EXPLOSION_CENTER && map->isWall(tile.x, tile.y))
-		return;
+		return false;
 
 	Explosion *explosion = new Explosion();
 	explosion->init(tile, piece, map->getTileSize(), glm::ivec2(0, 0), &explosionSheet, Game::instance().getTexProgram());
+	explosion->setFromEnemy(fromEnemy);
 	explosions.push_back(explosion);
-
+	return true;
 }
 
-bool Level::isOnFire(const glm::ivec2 &pos, const glm::ivec2 &size) const
+bool Level::isOnFire(const glm::ivec2 &pos, const glm::ivec2 &size, bool onlyPlayerFire) const
 {
 	for(size_t i = 0; i < explosions.size(); i++)
-		if(overlapsTile(pos, size, explosions[i]->getTile()))
+		if(!(onlyPlayerFire && explosions[i]->isFromEnemy()) && overlapsTile(pos, size, explosions[i]->getTile()))
 			return true;
 	return false;
 }
@@ -419,8 +638,12 @@ void Level::render(int windowWidth, int windowHeight)
 	map->render();
 	for(size_t i = 0; i < bombs.size(); i++)
 		bombs[i]->render();
+	if(boss != NULL)
+		boss->render();
 	for(size_t i = 0; i < enemies.size(); i++)
 		enemies[i]->render();
+	for(size_t i = 0; i < projectiles.size(); i++)
+		projectiles[i]->render();
 	for(size_t i = 0; i < explosions.size(); i++)
 		explosions[i]->render();
 	player->render();
@@ -440,7 +663,7 @@ void Level::render(int windowWidth, int windowHeight)
 	hudState.secondsLeft = (timeLeft + 999) / 1000;
 	hudState.hasHeart = player->hasHeart();
 	hudState.lives = Game::instance().getLives();
-	hudState.enemiesLeft = int(enemies.size());
+	hudState.enemiesLeft = int(enemies.size()) + (boss != NULL ? 1 : 0);
 	hudState.maxBombs = maxBombs;
 	hudState.blastRange = blastRange;
 	hud.render(hudState);

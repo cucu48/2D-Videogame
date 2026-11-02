@@ -10,6 +10,7 @@
 void Game::init()
 {
 	bPlay = true;
+	bGodMode = false;
 	windowWidth = SCREEN_WIDTH;
 	windowHeight = SCREEN_HEIGHT;
 	glClearColor(0.3f, 0.3f, 0.3f, 1.0f);

@@ -65,6 +65,10 @@ public:
 	int getLives() const { return lives; }
 	void loseLife() { if(lives > 0) lives--; }
 
+	// Modo dios (tecla G): el jugador no puede morir. Se mantiene entre niveles.
+	bool isGodMode() const { return bGodMode; }
+	void toggleGodMode() { bGodMode = !bGodMode; }
+
 	// Shader shared by all the scenes
 	ShaderProgram &getTexProgram() { return texProgram; }
 
@@ -79,6 +83,7 @@ private:
 	std::vector<Scene *> scenes;
 	int currentScene;
 	int lives;
+	bool bGodMode;
 	int mouseX, mouseY; // last cursor position, in window pixels
 	ShaderProgram texProgram;
 

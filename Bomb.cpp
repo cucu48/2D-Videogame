@@ -20,6 +20,9 @@ void Bomb::init(const glm::ivec2 &tile, int tileSize, const glm::ivec2 &tileMapP
 	tilePos = tile;
 	timeLeft = BOMB_TIME;
 	passable = true;
+	enemyBomb = false;
+	horizontalOnly = false;
+	range = 1;
 
 	sprite = Sprite::createSprite(glm::ivec2(tileSize, tileSize), glm::vec2(0.25f, 1.f), spritesheet, &shaderProgram);
 	sprite->setNumberAnimations(1);
@@ -30,6 +33,14 @@ void Bomb::init(const glm::ivec2 &tile, int tileSize, const glm::ivec2 &tileMapP
 	sprite->addKeyframe(0, glm::vec2(0.75f, 0.f));
 	sprite->changeAnimation(0);
 	sprite->setPosition(glm::vec2(float(tileMapPos.x + tile.x * tileSize), float(tileMapPos.y + tile.y * tileSize)));
+}
+
+void Bomb::setEnemyBomb(int range, bool horizontalOnly, int fuseTime)
+{
+	enemyBomb = true;
+	this->range = range;
+	this->horizontalOnly = horizontalOnly;
+	timeLeft = fuseTime;
 }
 
 void Bomb::update(int deltaTime)

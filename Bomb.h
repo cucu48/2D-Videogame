@@ -23,10 +23,19 @@ public:
 	bool isPassable() const { return passable; }
 	void makeSolid() { passable = false; }
 
+	// Bombas de los enemigos (lluvia de bombas de Trent): otro alcance, solo en
+	// horizontal y no cuentan para el limite de bombas del jugador
+	void setEnemyBomb(int range, bool horizontalOnly, int fuseTime);
+	bool isEnemyBomb() const { return enemyBomb; }
+	int getRange() const { return range; }
+	bool isHorizontalOnly() const { return horizontalOnly; }
+
 private:
 	glm::ivec2 tilePos;
 	int timeLeft;
 	bool passable;
+	bool enemyBomb, horizontalOnly;
+	int range;
 	Sprite *sprite;
 
 };

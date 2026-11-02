@@ -8,7 +8,8 @@
 
 enum ExplosionPiece
 {
-	EXPLOSION_CENTER, EXPLOSION_UP, EXPLOSION_DOWN, EXPLOSION_LEFT, EXPLOSION_RIGHT
+	EXPLOSION_CENTER, EXPLOSION_UP, EXPLOSION_DOWN, EXPLOSION_LEFT, EXPLOSION_RIGHT,
+	EXPLOSION_HMID, EXPLOSION_VMID // tramos intermedios cuando el alcance es mayor que 1
 };
 
 
@@ -24,10 +25,13 @@ public:
 
 	glm::ivec2 getTile() const { return tilePos; }
 	bool isFinished() const { return timeLeft <= 0; }
+	void setFromEnemy(bool fromEnemy) { bFromEnemy = fromEnemy; }
+	bool isFromEnemy() const { return bFromEnemy; } // de una bomba de Trent (a el no le hace dano)
 
 private:
 	glm::ivec2 tilePos;
 	int timeLeft;
+	bool bFromEnemy;
 	Sprite *sprite;
 
 };

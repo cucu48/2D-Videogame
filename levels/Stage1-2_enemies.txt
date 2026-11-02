@@ -1,3 +1,8 @@
 # Enemigos de Stage1-2
 # tipo columna fila direccion
 DOOR 9 7
+# tipos: 0 Jacky, 1 Eyti, 2-4 saltarines, 5 Cloudy, 6 Springchicken, 7 Elekin Man, 8 Leaf, 9 Trent (jefe)
+0 9 4 -1
+1 8 7 -1
+6 12 22 1
+7 11 17 -1

@@ -1,3 +1,8 @@
 # Enemigos de Stage1-4
 # tipo columna fila direccion
 DOOR 26 4
+# tipos: 0 Jacky, 1 Eyti, 2-4 saltarines, 5 Cloudy, 6 Springchicken, 7 Elekin Man, 8 Leaf, 9 Trent (jefe)
+6 20 13 1
+5 17 7 -1
+1 16 11 -1
+7 26 9 -1

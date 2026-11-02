@@ -10,6 +10,8 @@
 #include "Bomb.h"
 #include "Explosion.h"
 #include "Enemy.h"
+#include "Trent.h"
+#include "Projectile.h"
 #include "Hud.h"
 #include <vector>
 
@@ -37,11 +39,12 @@ public:
 	void onEnter();                  // restarts the stage
 	void update(int deltaTime);
 	void render(int windowWidth, int windowHeight);
-	void keyPressed(int key);        // H toggles the heart power-up (debug until pickups exist)
+	void keyPressed(int key);        // H toggles the heart power-up (debug until pickups exist), K kills every enemy, G god mode
 
 	// true si la caja (en pixeles del mapa) toca algun tile en llamas.
 	// Pensado tambien para los enemigos cuando se implementen.
-	bool isOnFire(const glm::ivec2 &pos, const glm::ivec2 &size) const;
+	// Con onlyPlayerFire solo cuentan las explosiones de las bombas del jugador.
+	bool isOnFire(const glm::ivec2 &pos, const glm::ivec2 &size, bool onlyPlayerFire = false) const;
 
 private:
 	void loadLevel();
@@ -53,8 +56,14 @@ private:
 	void finishLevel();              // goes to the next level (or the menu after the last one)
 	void placeBomb();
 	void hurtPlayer();               // the heart absorbs the hit, otherwise the player dies
+	bool touchesPlayer(const glm::ivec2 &pos, const glm::ivec2 &size) const; // and the player can be hurt
+	void updateEnemies(int deltaTime);
+	void updateBoss(int deltaTime);
+	void updateProjectiles(int deltaTime);
+	void bossAttack(TrentAttack attack);
+	void addEnemy(int type, const glm::ivec2 &pos, int dir);
 	void explodeBomb(int index);
-	void addExplosion(const glm::ivec2 &tile, ExplosionPiece piece);
+	bool addExplosion(const glm::ivec2 &tile, ExplosionPiece piece, bool fromEnemy); // false if a wall stops it
 	bool overlapsTile(const glm::ivec2 &pos, const glm::ivec2 &size, const glm::ivec2 &tile) const;
 
 private:
@@ -68,6 +77,8 @@ private:
 	vector<Enemy *> enemies;
 	vector<Bomb *> bombs;
 	vector<Explosion *> explosions;
+	vector<Projectile *> projectiles;
+	Trent *boss;                    // NULL if the level has no boss
 	float currentTime;
 	int timeLeft;                   // ms
 	int maxBombs;                   // bombs that can be on the map at the same time
