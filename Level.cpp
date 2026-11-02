@@ -12,11 +12,12 @@
 #define INIT_PLAYER_X_TILES 4
 #define DEFAULT_MAX_BOMBS 5
 #define DEFAULT_BLAST_RANGE 1
-#define START_LIVES 2
 #define LEVEL_TIME 240000 // 4 minutes
 #define RESPAWN_TIME 2000
 #define VIEW_W 320
 #define VIEW_H 288
+#define CLEAR_TIME 2500     // ms showing "WORLD CLEAR!!" before the next level
+#define GAME_OVER_TIME 3000 // ms showing "GAME OVER" before going back to the menu
 
 
 Level::Level(int number)
@@ -24,11 +25,17 @@ Level::Level(int number)
 	this->number = number;
 	map = NULL;
 	player = NULL;
+	clearSprite = NULL;
+	gameOverSprite = NULL;
 }
 
 Level::~Level()
 {
 	cleanup();
+	if(clearSprite != NULL)
+		delete clearSprite;
+	if(gameOverSprite != NULL)
+		delete gameOverSprite;
 }
 
 // Frees everything created by loadLevel
@@ -63,6 +70,18 @@ void Level::init()
 	enemySheet.setMinFilter(GL_NEAREST);
 	enemySheet.setMagFilter(GL_NEAREST);
 	hud.init();
+
+	// Carteles de fin de nivel (imagenes a x2)
+	ShaderProgram &texProgram = Game::instance().getTexProgram();
+	clearTex.loadFromFile("images/WorldClear.png", TEXTURE_PIXEL_FORMAT_RGBA);
+	clearTex.setMinFilter(GL_NEAREST);
+	clearTex.setMagFilter(GL_NEAREST);
+	clearSprite = Sprite::createSprite(glm::vec2(clearTex.width() * 2, clearTex.height() * 2), glm::vec2(1.f, 1.f), &clearTex, &texProgram);
+	gameOverTex.loadFromFile("images/GameOver.png", TEXTURE_PIXEL_FORMAT_RGBA);
+	gameOverTex.setMinFilter(GL_NEAREST);
+	gameOverTex.setMagFilter(GL_NEAREST);
+	gameOverSprite = Sprite::createSprite(glm::vec2(gameOverTex.width() * 2, gameOverTex.height() * 2), glm::vec2(1.f, 1.f), &gameOverTex, &texProgram);
+
 	loadLevel();
 }
 
@@ -83,13 +102,16 @@ void Level::loadLevel()
 	spawnPos = glm::vec2(map->findSpawn(INIT_PLAYER_X_TILES, glm::ivec2(32, 32)));
 	player->setPosition(spawnPos);
 	player->setTileMap(map);
+	bHasDoor = false;
 	loadEnemies(stage + "_enemies.txt");
+	initialEnemies = int(enemies.size());
+	state = LEVEL_PLAYING;
+	stateTime = 0;
 	deathTime = 0;
 	bombKeyWasPressed = false;
 	updateCamera();
 	currentTime = 0.0f;
 	timeLeft = LEVEL_TIME;
-	lives = START_LIVES;
 	maxBombs = DEFAULT_MAX_BOMBS;
 	blastRange = DEFAULT_BLAST_RANGE;
 }
@@ -97,6 +119,18 @@ void Level::loadLevel()
 void Level::update(int deltaTime)
 {
 	currentTime += deltaTime;
+
+	// Fin del nivel: solo se espera a que pase el cartel
+	if(state != LEVEL_PLAYING)
+	{
+		stateTime += deltaTime;
+		if(state == LEVEL_CLEARED && stateTime >= CLEAR_TIME)
+			finishLevel();
+		else if(state == LEVEL_GAME_OVER && stateTime >= GAME_OVER_TIME)
+			Game::instance().changeScene(SCENE_MENU);
+		return;
+	}
+
 	timeLeft = std::max(0, timeLeft - deltaTime);
 	player->update(deltaTime);
 
@@ -167,14 +201,64 @@ void Level::update(int deltaTime)
 	{
 		hurtPlayer();
 	}
+	// Se acaba el tiempo: el jugador muere (el corazon no le salva)
+	if(timeLeft == 0 && !player->isDead())
+	{
+		player->kill();
+		deathTime = 0;
+		Game::instance().loseLife();
+	}
+
 	if(player->isDead())
 	{
 		deathTime += deltaTime;
 		if(deathTime >= RESPAWN_TIME)
-			player->respawn(spawnPos);
+		{
+			if(Game::instance().getLives() == 0)
+			{
+				state = LEVEL_GAME_OVER;
+				stateTime = 0;
+			}
+			else
+			{
+				player->respawn(spawnPos);
+				if(timeLeft == 0)
+					timeLeft = LEVEL_TIME;
+			}
+		}
+	}
+
+	// Ganar: con todos los enemigos eliminados, llegar a la puerta
+	else if(isDoorOpen() && (bHasDoor ? playerAtDoor() : initialEnemies > 0))
+	{
+		player->stopDance();
+		state = LEVEL_CLEARED;
+		stateTime = 0;
 	}
 
 	updateCamera();
+}
+
+// La puerta se abre cuando no queda ningun enemigo (ni siquiera desapareciendo)
+bool Level::isDoorOpen() const
+{
+	return enemies.empty();
+}
+
+// El centro del jugador esta dentro del tile de la puerta
+bool Level::playerAtDoor() const
+{
+	int tileSize = map->getTileSize();
+	glm::ivec2 center = player->hitboxPos() + player->hitboxSize() / 2;
+	return center.x / tileSize == doorTile.x && center.y / tileSize == doorTile.y;
+}
+
+void Level::finishLevel()
+{
+	if(number < NUM_LEVELS)
+		Game::instance().startLevel(number + 1);
+	else
+		Game::instance().changeScene(SCENE_MENU);
 }
 
 // Centra la camara en el jugador sin salirse del mapa. Si el mapa es mas
@@ -200,6 +284,8 @@ void Level::updateCamera()
 //   tipo columna fila direccion
 // tipo = fila de images/enemies.png (0-6), direccion = -1 izquierda / 1 derecha.
 // Las lineas que empiezan por # son comentarios.
+// Una linea "DOOR columna fila" indica el tile de la puerta de salida. Si un
+// nivel no tiene puerta, se supera al eliminar a todos los enemigos.
 void Level::loadEnemies(const string &enemiesFile)
 {
 	ifstream fin(enemiesFile.c_str());
@@ -211,6 +297,13 @@ void Level::loadEnemies(const string &enemiesFile)
 		if(line.empty() || line[0] == '#')
 			continue;
 		stringstream ss(line);
+		if(line.compare(0, 4, "DOOR") == 0)
+		{
+			ss.ignore(4);
+			if(ss >> doorTile.x >> doorTile.y)
+				bHasDoor = true;
+			continue;
+		}
 		int type, col, row, dir;
 		if(!(ss >> type >> col >> row >> dir) || type < 0 || type > 6)
 			continue;
@@ -242,9 +335,7 @@ void Level::hurtPlayer()
 	}
 	player->kill();
 	deathTime = 0;
-	if(lives > 0)
-		lives--;
-	// TODO game over when the player dies with no lives left
+	Game::instance().loseLife();
 }
 
 void Level::placeBomb()
@@ -334,14 +425,24 @@ void Level::render(int windowWidth, int windowHeight)
 		explosions[i]->render();
 	player->render();
 
+	// Cartel de fin de nivel, centrado en la vista
+	Sprite *banner = (state == LEVEL_CLEARED) ? clearSprite : (state == LEVEL_GAME_OVER) ? gameOverSprite : NULL;
+	if(banner != NULL)
+	{
+		Texture &tex = (state == LEVEL_CLEARED) ? clearTex : gameOverTex;
+		glm::vec2 size(tex.width() * 2, tex.height() * 2);
+		banner->setPosition(glm::floor(camera + (glm::vec2(VIEW_W, VIEW_H) - size) / 2.f));
+		banner->render();
+	}
+
 	glViewport(vp[0], vp[1], vp[2], hudPx);
-	HudState state;
-	state.secondsLeft = (timeLeft + 999) / 1000;
-	state.hasHeart = player->hasHeart();
-	state.lives = lives;
-	state.enemiesLeft = int(enemies.size());
-	state.maxBombs = maxBombs;
-	state.blastRange = blastRange;
-	hud.render(state);
+	HudState hudState;
+	hudState.secondsLeft = (timeLeft + 999) / 1000;
+	hudState.hasHeart = player->hasHeart();
+	hudState.lives = Game::instance().getLives();
+	hudState.enemiesLeft = int(enemies.size());
+	hudState.maxBombs = maxBombs;
+	hudState.blastRange = blastRange;
+	hud.render(hudState);
 }
 

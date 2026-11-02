@@ -18,6 +18,14 @@
 // It is responsible for updating and render them.
 
 
+enum LevelState
+{
+	LEVEL_PLAYING,
+	LEVEL_CLEARED,   // the player reached the open door: "WORLD CLEAR!!" and next level
+	LEVEL_GAME_OVER  // no lives left: "GAME OVER" and back to the menu
+};
+
+
 class Level : public Scene
 {
 
@@ -40,6 +48,9 @@ private:
 	void updateCamera();
 	void cleanup();
 	void loadEnemies(const string &enemiesFile);
+	bool isDoorOpen() const;
+	bool playerAtDoor() const;
+	void finishLevel();              // goes to the next level (or the menu after the last one)
 	void placeBomb();
 	void hurtPlayer();               // the heart absorbs the hit, otherwise the player dies
 	void explodeBomb(int index);
@@ -59,10 +70,16 @@ private:
 	vector<Explosion *> explosions;
 	float currentTime;
 	int timeLeft;                   // ms
-	int lives;
 	int maxBombs;                   // bombs that can be on the map at the same time
 	int blastRange;                 // tiles the explosion reaches in each direction
 	Hud hud;
+	LevelState state;
+	int stateTime;                  // ms since the current state started
+	bool bHasDoor;
+	int initialEnemies;             // without a door, the level is cleared once they are all gone
+	glm::ivec2 doorTile;
+	Texture clearTex, gameOverTex;
+	Sprite *clearSprite, *gameOverSprite;
 	glm::mat4 projection;
 	glm::vec2 camera;               // esquina superior izquierda de la vista, en pixeles del mapa
 

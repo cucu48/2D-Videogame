@@ -17,6 +17,7 @@
 #define SCENE_LEVEL_SELECT 1
 #define SCENE_FIRST_LEVEL 2
 #define NUM_LEVELS 5
+#define START_LIVES 3
 
 
 // Game is a singleton (a class with a single instance) that represents our whole application
@@ -59,6 +60,11 @@ public:
 	void changeScene(int index);
 	void startLevel(int levelNumber); // levelNumber goes from 1 to NUM_LEVELS
 
+	// Lives last the whole game (they carry over between levels). Leaving the
+	// gameplay (menu or level selector) starts a new game with START_LIVES.
+	int getLives() const { return lives; }
+	void loseLife() { if(lives > 0) lives--; }
+
 	// Shader shared by all the scenes
 	ShaderProgram &getTexProgram() { return texProgram; }
 
@@ -72,10 +78,11 @@ private:
 							    // we can have access at any time
 	std::vector<Scene *> scenes;
 	int currentScene;
+	int lives;
 	int mouseX, mouseY; // last cursor position, in window pixels
 	ShaderProgram texProgram;
 
 };
 
 
-#endif // _GAME_INCLUDE
+#endif // _GAME_INCLUDE

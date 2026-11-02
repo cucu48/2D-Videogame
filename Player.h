@@ -52,6 +52,7 @@ private:
 	bool bDead;
 	bool bHeart;
 	bool bDancing;
+	float moveAccum;      // parte fraccionaria de MOVE_SPEED pendiente de aplicar
 	int invulnerableTime; // tras reaparecer, un rato sin poder morir (parpadea)
 	glm::ivec2 tileMapDispl, posPlayer;
 	int jumpAngle, startY;

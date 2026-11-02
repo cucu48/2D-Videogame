@@ -1,0 +1,3 @@
+# Enemigos de Stage1-3
+# tipo columna fila direccion
+DOOR 27 9

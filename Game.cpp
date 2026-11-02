@@ -37,6 +37,8 @@ void Game::changeScene(int index)
 	if(index < 0 || index >= int(scenes.size()))
 		return;
 	currentScene = index;
+	if(index < SCENE_FIRST_LEVEL)
+		lives = START_LIVES;
 	scenes[currentScene]->onEnter();
 }
 

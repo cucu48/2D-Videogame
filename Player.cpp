@@ -9,6 +9,7 @@
 #define JUMP_ANGLE_STEP 4
 #define JUMP_HEIGHT 96
 #define FALL_STEP 4
+#define MOVE_SPEED 2.5f // px por frame, igual andando que saltando (admite decimales)
 #define HITBOX_OFFSET_X 4
 #define HITBOX_WIDTH 24
 #define HITBOX_HEIGHT 32
@@ -60,6 +61,7 @@ void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
 	bDead = false;
 	bHeart = false;
 	bDancing = false;
+	moveAccum = 0.f;
 	invulnerableTime = 0;
 	spritesheet.loadFromFile("images/player.png", TEXTURE_PIXEL_FORMAT_RGBA);
 	sprite = Sprite::createSprite(glm::ivec2(32, 32), glm::vec2(0.25, 0.25), &spritesheet, &shaderProgram);
@@ -149,7 +151,10 @@ void Player::update(int deltaTime)
 
     glm::ivec2 hbSize(HITBOX_WIDTH, HITBOX_HEIGHT);
     bool bInAir = bJumping || !bOnGround;
-    int speed = bJumping ? 3 : 2; // en el salto se avanza un poco mas rapido
+    // velocidad con decimales: se acumula la parte fraccionaria (2.5 -> 2, 3, 2, 3...)
+    moveAccum += MOVE_SPEED;
+    int speed = int(moveAccum);
+    moveAccum -= speed;
     
     // --- MOVIMIENTO HORIZONTAL ---
     if(Game::instance().getKey(GLFW_KEY_LEFT))
