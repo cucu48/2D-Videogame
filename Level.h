@@ -54,6 +54,7 @@ private:
 	void placeBomb();
 	void hurtPlayer();               // the heart absorbs the hit, otherwise the player dies
 	void explodeBomb(int index);
+	int findBomb(const glm::ivec2 &tile) const; // index in bombs, or -1
 	void addExplosion(const glm::ivec2 &tile, ExplosionPiece piece);
 	bool overlapsTile(const glm::ivec2 &pos, const glm::ivec2 &size, const glm::ivec2 &tile) const;
 

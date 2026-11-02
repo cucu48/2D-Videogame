@@ -153,7 +153,10 @@ void Level::update(int deltaTime)
 	for(size_t i = 0; i < bombs.size(); )
 	{
 		if(bombs[i]->hasToExplode())
+		{
 			explodeBomb(i);
+			i = 0; // chain reactions may have flagged bombs before this index
+		}
 		else
 			i++;
 	}
@@ -358,6 +361,7 @@ void Level::placeBomb()
 void Level::explodeBomb(int index)
 {
 	glm::ivec2 tile = bombs[index]->getTile();
+	int skipArm = bombs[index]->getSkipArm();
 	map->setBlocked(tile.x, tile.y, false);
 	delete bombs[index];
 	bombs.erase(bombs.begin() + index);
@@ -370,15 +374,31 @@ void Level::explodeBomb(int index)
 
 	for(int d = 0; d < 4; d++)
 	{
+		if(d == skipArm)
+			continue; // this arm points back at the bomb that triggered us
 		for(int step = 1; step <= blastRange; step++)
 		{
 			glm::ivec2 t = tile + dirs[d] * step;
 			if(map->isWall(t.x, t.y))
 				break; // walls stop the arm, no flames on them
+			int hit = findBomb(t);
+			if(hit >= 0)
+			{
+				bombs[hit]->detonate(d ^ 1); // chain reaction; the arm stops here like on a wall
+				break;
+			}
 			// tip only when the arm reaches its full length; a wall-shortened arm keeps the arm piece
 			addExplosion(t, step == blastRange ? tips[d] : middles[d]);
 		}
 	}
+}
+
+int Level::findBomb(const glm::ivec2 &tile) const
+{
+	for(size_t i = 0; i < bombs.size(); i++)
+		if(bombs[i]->getTile() == tile)
+			return int(i);
+	return -1;
 }
 
 void Level::addExplosion(const glm::ivec2 &tile, ExplosionPiece piece)
