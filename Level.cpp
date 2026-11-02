@@ -227,6 +227,8 @@ void Level::keyPressed(int key)
 {
 	if(key == GLFW_KEY_H)
 		player->setHeart(!player->hasHeart());
+	if(key == GLFW_KEY_B)
+		player->toggleDance();
 }
 
 // The heart absorbs one hit (the player blinks, immune, like after respawning). Without it the player dies.

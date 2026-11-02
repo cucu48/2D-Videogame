@@ -33,6 +33,11 @@ public:
 	bool isInvulnerable() const { return invulnerableTime > 0; }
 	void startInvulnerable();   // blinking immunity, also used after respawning
 
+	// Baile (tecla B): solo en el suelo; se corta al moverse, saltar o morir
+	void toggleDance();
+	void stopDance();
+	bool isDancing() const { return bDancing; }
+
 	// Heart power-up: absorbs the next hit
 	bool hasHeart() const { return bHeart; }
 	void setHeart(bool heart) { bHeart = heart; }
@@ -46,11 +51,14 @@ private:
 	bool bOnGround;
 	bool bDead;
 	bool bHeart;
+	bool bDancing;
 	int invulnerableTime; // tras reaparecer, un rato sin poder morir (parpadea)
 	glm::ivec2 tileMapDispl, posPlayer;
 	int jumpAngle, startY;
 	Texture spritesheet;
 	Sprite *sprite;
+	Texture danceSheet;
+	Sprite *danceSprite;   // el baile usa otra hoja de sprites (images/player_dance.png)
 	TileMap *map;
 
 };

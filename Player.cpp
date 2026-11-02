@@ -3,6 +3,7 @@
 #include <GL/glew.h>
 #include "Player.h"
 #include "Game.h"
+#include "Audio.h"
 
 
 #define JUMP_ANGLE_STEP 4
@@ -12,6 +13,7 @@
 #define HITBOX_WIDTH 24
 #define HITBOX_HEIGHT 32
 #define INVULNERABLE_TIME 2000
+#define DANCE_MUSIC "sounds/default_dance.mp3"
 #define CORNER_TOLERANCE 8 // px que se puede empujar al jugador para colarse por un hueco
 
 
@@ -26,13 +28,17 @@ enum PlayerAnims
 Player::Player()
 {
 	sprite = NULL;
+	danceSprite = NULL;
 	map = NULL;
 }
 
 Player::~Player()
 {
+	stopDance();
 	if (sprite != NULL)
 		delete sprite;
+	if (danceSprite != NULL)
+		delete danceSprite;
 }
 
 glm::ivec2 Player::hitboxPos() const
@@ -53,6 +59,7 @@ void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
 	bOnGround = false;
 	bDead = false;
 	bHeart = false;
+	bDancing = false;
 	invulnerableTime = 0;
 	spritesheet.loadFromFile("images/player.png", TEXTURE_PIXEL_FORMAT_RGBA);
 	sprite = Sprite::createSprite(glm::ivec2(32, 32), glm::vec2(0.25, 0.25), &spritesheet, &shaderProgram);
@@ -98,6 +105,20 @@ void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
     	sprite->addKeyframe(DEATH, glm::vec2(0.75f, 0.25f));
 		
 	sprite->changeAnimation(0);
+
+	// --- BAILE (images/player_dance.png: 8 frames de 32x32 en 4 columnas x 2 filas) ---
+	danceSheet.loadFromFile("images/player_dance.png", TEXTURE_PIXEL_FORMAT_RGBA);
+	danceSheet.setMinFilter(GL_NEAREST);
+	danceSheet.setMagFilter(GL_NEAREST);
+	danceSprite = Sprite::createSprite(glm::ivec2(32, 32), glm::vec2(0.25f, 0.5f), &danceSheet, &shaderProgram);
+	danceSprite->setNumberAnimations(1);
+	danceSprite->setAnimationSpeed(0, 7);
+	// brazos cruzados (x4), punos arriba con rodilla (x4), piernas abiertas (x4), ondear (x4)
+	const int danceSteps[16] = { 0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7 };
+	for(int i = 0; i < 16; i++)
+		danceSprite->addKeyframe(0, glm::vec2(0.25f * (danceSteps[i] % 4), 0.5f * (danceSteps[i] / 4)));
+	danceSprite->changeAnimation(0);
+
 	tileMapDispl = tileMapPos;
 	sprite->setPosition(glm::vec2(float(tileMapDispl.x + posPlayer.x), float(tileMapDispl.y + posPlayer.y)));
 	
@@ -112,6 +133,19 @@ void Player::update(int deltaTime)
     // muerto: solo se reproduce la animacion de muerte, sin control ni gravedad
     if(bDead)
         return;
+
+    // bailando: no se mueve; cualquier tecla de movimiento corta el baile
+    if(bDancing)
+    {
+        if(Game::instance().getKey(GLFW_KEY_LEFT) || Game::instance().getKey(GLFW_KEY_RIGHT) ||
+           Game::instance().getKey(GLFW_KEY_UP))
+            stopDance();
+        else
+        {
+            danceSprite->update(deltaTime);
+            return;
+        }
+    }
 
     glm::ivec2 hbSize(HITBOX_WIDTH, HITBOX_HEIGHT);
     bool bInAir = bJumping || !bOnGround;
@@ -246,10 +280,35 @@ bool Player::nudgeVertical()
     return false;
 }
 
+void Player::toggleDance()
+{
+    if(bDancing)
+    {
+        stopDance();
+        return;
+    }
+    if(bDead || !bOnGround)
+        return;
+    bDancing = true;
+    danceSprite->changeAnimation(0);
+    danceSprite->setPosition(glm::vec2(float(tileMapDispl.x + posPlayer.x), float(tileMapDispl.y + posPlayer.y)));
+    Audio::instance().playMusic(DANCE_MUSIC, true);
+}
+
+void Player::stopDance()
+{
+    if(!bDancing)
+        return;
+    bDancing = false;
+    Audio::instance().stopMusic();
+    sprite->changeAnimation(lookingRight ? STAND_RIGHT : STAND_LEFT);
+}
+
 void Player::kill()
 {
     if(bDead)
         return;
+    stopDance();
     bDead = true;
     bJumping = false;
     bRising = false;
@@ -278,7 +337,10 @@ void Player::render()
 	// mientras es invulnerable, parpadea (se dibuja 100 ms si, 100 ms no)
 	if(invulnerableTime > 0 && (invulnerableTime / 100) % 2 == 0)
 		return;
-	sprite->render();
+	if(bDancing)
+		danceSprite->render();
+	else
+		sprite->render();
 }
 
 void Player::setTileMap(TileMap *tileMap)
