@@ -64,6 +64,7 @@ private:
 	void addEnemy(int type, const glm::ivec2 &pos, int dir);
 	void explodeBomb(int index);
 	bool addExplosion(const glm::ivec2 &tile, ExplosionPiece piece, bool fromEnemy); // false if a wall stops it
+	int findBomb(const glm::ivec2 &tile) const; // index in bombs, or -1
 	bool overlapsTile(const glm::ivec2 &pos, const glm::ivec2 &size, const glm::ivec2 &tile) const;
 
 private:
