@@ -11,7 +11,7 @@
 
 #define INIT_PLAYER_X_TILES 4
 #define DEFAULT_MAX_BOMBS 5
-#define DEFAULT_BLAST_RANGE 1
+#define DEFAULT_BLAST_RANGE 3
 #define LEVEL_TIME 240000 // 4 minutes
 #define RESPAWN_TIME 2000
 #define VIEW_W 320
