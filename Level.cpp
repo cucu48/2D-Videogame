@@ -11,7 +11,7 @@
 
 #define INIT_PLAYER_X_TILES 4
 #define DEFAULT_MAX_BOMBS 5
-#define DEFAULT_BLAST_RANGE 1
+#define DEFAULT_BLAST_RANGE 3
 #define LEVEL_TIME 240000 // 4 minutes
 #define RESPAWN_TIME 2000
 #define VIEW_W 320
@@ -63,7 +63,7 @@ void Level::init()
 	bombSheet.loadFromFile("images/bomb.png", TEXTURE_PIXEL_FORMAT_RGBA);
 	bombSheet.setMinFilter(GL_NEAREST);
 	bombSheet.setMagFilter(GL_NEAREST);
-	explosionSheet.loadFromFile("images/explosion.png", TEXTURE_PIXEL_FORMAT_RGBA);
+	explosionSheet.loadFromFile("images/explosion2.png", TEXTURE_PIXEL_FORMAT_RGBA);
 	explosionSheet.setMinFilter(GL_NEAREST);
 	explosionSheet.setMagFilter(GL_NEAREST);
 	enemySheet.loadFromFile("images/enemies.png", TEXTURE_PIXEL_FORMAT_RGBA);
@@ -355,7 +355,6 @@ void Level::placeBomb()
 	bombs.push_back(bomb);
 }
 
-//TODO Rewrite when fire UP.
 void Level::explodeBomb(int index)
 {
 	glm::ivec2 tile = bombs[index]->getTile();
@@ -364,17 +363,26 @@ void Level::explodeBomb(int index)
 	bombs.erase(bombs.begin() + index);
 
 	addExplosion(tile, EXPLOSION_CENTER);
-	addExplosion(tile + glm::ivec2(0, -1), EXPLOSION_UP);
-	addExplosion(tile + glm::ivec2(0, 1), EXPLOSION_DOWN);
-	addExplosion(tile + glm::ivec2(-1, 0), EXPLOSION_LEFT);
-	addExplosion(tile + glm::ivec2(1, 0), EXPLOSION_RIGHT);
+
+	const glm::ivec2 dirs[4] = { glm::ivec2(0, -1), glm::ivec2(0, 1), glm::ivec2(-1, 0), glm::ivec2(1, 0) };
+	const ExplosionPiece tips[4] = { EXPLOSION_UP, EXPLOSION_DOWN, EXPLOSION_LEFT, EXPLOSION_RIGHT };
+	const ExplosionPiece middles[4] = { EXPLOSION_VERTICAL, EXPLOSION_VERTICAL, EXPLOSION_HORIZONTAL, EXPLOSION_HORIZONTAL };
+
+	for(int d = 0; d < 4; d++)
+	{
+		for(int step = 1; step <= blastRange; step++)
+		{
+			glm::ivec2 t = tile + dirs[d] * step;
+			if(map->isWall(t.x, t.y))
+				break; // walls stop the arm, no flames on them
+			// tip only when the arm reaches its full length; a wall-shortened arm keeps the arm piece
+			addExplosion(t, step == blastRange ? tips[d] : middles[d]);
+		}
+	}
 }
 
 void Level::addExplosion(const glm::ivec2 &tile, ExplosionPiece piece)
 {
-	if(piece != EXPLOSION_CENTER && map->isWall(tile.x, tile.y))
-		return;
-
 	Explosion *explosion = new Explosion();
 	explosion->init(tile, piece, map->getTileSize(), glm::ivec2(0, 0), &explosionSheet, Game::instance().getTexProgram());
 	explosions.push_back(explosion);
