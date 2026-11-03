@@ -11,7 +11,7 @@
 
 #define INIT_PLAYER_X_TILES 4
 #define DEFAULT_MAX_BOMBS 5
-#define DEFAULT_BLAST_RANGE 1
+#define DEFAULT_BLAST_RANGE 3
 #define LEVEL_TIME 240000 // 4 minutes
 #define RESPAWN_TIME 2000
 #define VIEW_W 320
@@ -167,7 +167,10 @@ void Level::update(int deltaTime)
 	for(size_t i = 0; i < bombs.size(); )
 	{
 		if(bombs[i]->hasToExplode())
+		{
 			explodeBomb(i);
+			i = 0; // chain reactions may have flagged bombs before this index
+		}
 		else
 			i++;
 	}
@@ -578,6 +581,7 @@ void Level::explodeBomb(int index)
 	int range = bomb->isEnemyBomb() ? bomb->getRange() : blastRange;
 	bool horizontalOnly = bomb->isHorizontalOnly();
 	bool fromEnemy = bomb->isEnemyBomb();
+	int skipArm = bomb->getSkipArm();
 	map->setBlocked(tile.x, tile.y, false);
 	delete bomb;
 	bombs.erase(bombs.begin() + index);
@@ -587,26 +591,34 @@ void Level::explodeBomb(int index)
 	const ExplosionPiece ends[4] = { EXPLOSION_UP, EXPLOSION_DOWN, EXPLOSION_LEFT, EXPLOSION_RIGHT };
 	for(int d = horizontalOnly ? 2 : 0; d < 4; d++)
 	{
+		if(d == skipArm)
+			continue; // this arm points back at the bomb that triggered us
 		ExplosionPiece mid = (d < 2) ? EXPLOSION_VMID : EXPLOSION_HMID;
 		for(int i = 1; i <= range; i++)
 		{
 			glm::ivec2 t = tile + dirs[d] * i;
-			if(!addExplosion(t, (i == range) ? ends[d] : mid, fromEnemy))
+			if(map->isWall(t.x, t.y))
 			{
-				hitWaterfall(t);
+				hitWaterfall(t); // la cabeza de una cascada se levanta
+				break; // walls stop the arm, no flames on them
+			}
+			int hit = findBomb(t);
+			if(hit >= 0)
+			{
+				bombs[hit]->detonate(d ^ 1); // chain reaction; the arm stops here like on a wall
 				break;
 			}
-			bool hitBomb = false;
-			for(size_t b = 0; b < bombs.size(); b++)
-				if(bombs[b]->getTile() == t)
-				{
-					bombs[b]->detonate(); // explota en el siguiente frame
-					hitBomb = true;
-				}
-			if(hitBomb)
-				break;
+			addExplosion(t, (i == range) ? ends[d] : mid, fromEnemy);
 		}
 	}
+}
+
+int Level::findBomb(const glm::ivec2 &tile) const
+{
+	for(size_t i = 0; i < bombs.size(); i++)
+		if(bombs[i]->getTile() == tile)
+			return int(i);
+	return -1;
 }
 
 void Level::hitWaterfall(const glm::ivec2 &tile)
