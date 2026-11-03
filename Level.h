@@ -20,6 +20,18 @@
 // It is responsible for updating and render them.
 
 
+// Cascada: al darle con una explosion en la cabeza, el agua se retira hacia
+// arriba tile a tile y deja el paso libre.
+struct Waterfall
+{
+	glm::ivec2 head;    // tile de la cabeza (no desaparece)
+	int bottomRow;      // ultima fila de agua
+	int nextRow;        // siguiente fila que se retira
+	int timer;
+	bool bRaising;
+};
+
+
 enum LevelState
 {
 	LEVEL_PLAYING,
@@ -51,6 +63,8 @@ private:
 	void updateCamera();
 	void cleanup();
 	void loadEnemies(const string &enemiesFile);
+	void hitWaterfall(const glm::ivec2 &tile);  // una explosion llega a este tile
+	void updateWaterfalls(int deltaTime);
 	bool isDoorOpen() const;
 	bool playerAtDoor() const;
 	void finishLevel();              // goes to the next level (or the menu after the last one)
@@ -78,6 +92,7 @@ private:
 	vector<Bomb *> bombs;
 	vector<Explosion *> explosions;
 	vector<Projectile *> projectiles;
+	vector<Waterfall> waterfalls;
 	Trent *boss;                    // NULL if the level has no boss
 	float currentTime;
 	int timeLeft;                   // ms

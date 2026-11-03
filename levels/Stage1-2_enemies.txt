@@ -6,3 +6,5 @@ DOOR 9 7
 1 8 7 -1
 6 12 22 1
 7 11 17 -1
+# cascadas: WATERFALL columna filaCabeza filaFinal
+WATERFALL 10 18 25

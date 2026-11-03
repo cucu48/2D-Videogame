@@ -44,6 +44,11 @@ public:
 	// Bloqueos dinamicos (bombas): un tile marcado se comporta como solido
 	void setBlocked(int x, int y, bool blocked);
 	bool isWall(int x, int y) const;
+
+	// Cambiar un tile del mapa en mitad de la partida (cascadas). Rehace el VBO.
+	int getTile(int x, int y) const;
+	void setTile(int x, int y, int tile);
+	int getBlankTile() const { return blankTileCode; }
 	
 private:
 	vector<bool> solidTile;
@@ -62,6 +67,8 @@ private:
 	glm::vec2 tileTexSize;
 	int *map;
 	int blankTileCode;
+	glm::vec2 minCoords;            // para rehacer el VBO en setTile
+	ShaderProgram *program;
 };
 
 

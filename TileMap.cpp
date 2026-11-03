@@ -24,6 +24,8 @@ TileMap *TileMap::createTileMap(const string &levelFile, const glm::vec2 &minCoo
 TileMap::TileMap(const string &levelFile, const glm::vec2 &minCoords, ShaderProgram &program)
 {
 	map = NULL;
+	this->minCoords = minCoords;
+	this->program = &program;
 	if(!loadLevel(levelFile))
 		throw runtime_error("Could not load tile map: " + levelFile);
 	prepareArrays(minCoords, program);
@@ -337,32 +339,18 @@ void TileMap::setBlocked(int x, int y, bool blocked)
 	blockedTile[y * mapSize.x + x] = blocked;
 }
 
+int TileMap::getTile(int x, int y) const
+{
+	if(x < 0 || x >= mapSize.x || y < 0 || y >= mapSize.y)
+		return -1;
+	return map[y * mapSize.x + x];
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+void TileMap::setTile(int x, int y, int tile)
+{
+	if(x < 0 || x >= mapSize.x || y < 0 || y >= mapSize.y)
+		return;
+	map[y * mapSize.x + x] = tile;
+	free();
+	prepareArrays(minCoords, *program);
+}

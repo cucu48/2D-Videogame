@@ -23,6 +23,7 @@
 #define SPORE_SPEED 2.f
 #define BOMB_RAIN_RANGE 4
 #define BOMB_RAIN_FUSE 2000
+#define WATERFALL_STEP 90     // ms entre cada tile de agua que se retira
 
 
 Level::Level(int number)
@@ -115,6 +116,7 @@ void Level::loadLevel()
 	player->setPosition(spawnPos);
 	player->setTileMap(map);
 	bHasDoor = false;
+	waterfalls.clear();
 	loadEnemies(stage + "_enemies.txt");
 	initialEnemies = int(enemies.size()) + (boss != NULL ? 1 : 0);
 	state = LEVEL_PLAYING;
@@ -183,6 +185,7 @@ void Level::update(int deltaTime)
 			i++;
 	}
 
+	updateWaterfalls(deltaTime);
 	updateEnemies(deltaTime);
 	updateBoss(deltaTime);
 	updateProjectiles(deltaTime);
@@ -450,6 +453,8 @@ void Level::updateCamera()
 // La posicion es el tile donde estan los pies del enemigo (Trent ocupa 2x2 tiles
 // hacia abajo y a la derecha desde ahi).
 // Las lineas que empiezan por # son comentarios.
+// Una linea "WATERFALL columna filaCabeza filaFinal" marca una cascada: la cabeza
+// esta en (columna, filaCabeza) y el agua llega hasta filaFinal.
 // Una linea "DOOR columna fila" indica el tile de la puerta de salida. Si un
 // nivel no tiene puerta, se supera al eliminar a todos los enemigos.
 void Level::loadEnemies(const string &enemiesFile)
@@ -463,6 +468,19 @@ void Level::loadEnemies(const string &enemiesFile)
 		if(line.empty() || line[0] == '#')
 			continue;
 		stringstream ss(line);
+		if(line.compare(0, 9, "WATERFALL") == 0)
+		{
+			ss.ignore(9);
+			Waterfall w;
+			if(ss >> w.head.x >> w.head.y >> w.bottomRow)
+			{
+				w.nextRow = w.bottomRow;
+				w.timer = 0;
+				w.bRaising = false;
+				waterfalls.push_back(w);
+			}
+			continue;
+		}
 		if(line.compare(0, 4, "DOOR") == 0)
 		{
 			ss.ignore(4);
@@ -574,7 +592,10 @@ void Level::explodeBomb(int index)
 		{
 			glm::ivec2 t = tile + dirs[d] * i;
 			if(!addExplosion(t, (i == range) ? ends[d] : mid, fromEnemy))
+			{
+				hitWaterfall(t);
 				break;
+			}
 			bool hitBomb = false;
 			for(size_t b = 0; b < bombs.size(); b++)
 				if(bombs[b]->getTile() == t)
@@ -585,6 +606,34 @@ void Level::explodeBomb(int index)
 			if(hitBomb)
 				break;
 		}
+	}
+}
+
+void Level::hitWaterfall(const glm::ivec2 &tile)
+{
+	for(size_t i = 0; i < waterfalls.size(); i++)
+		if(waterfalls[i].head == tile && !waterfalls[i].bRaising)
+		{
+			waterfalls[i].bRaising = true;
+			waterfalls[i].timer = 0;
+		}
+}
+
+// El agua se retira de abajo arriba: cada WATERFALL_STEP ms la fila mas baja
+// pasa a ser cielo (no solido) hasta llegar a la cabeza.
+void Level::updateWaterfalls(int deltaTime)
+{
+	for(size_t i = 0; i < waterfalls.size(); i++)
+	{
+		Waterfall &w = waterfalls[i];
+		if(!w.bRaising || w.nextRow <= w.head.y)
+			continue;
+		w.timer -= deltaTime;
+		if(w.timer > 0)
+			continue;
+		map->setTile(w.head.x, w.nextRow, map->getBlankTile());
+		w.nextRow--;
+		w.timer = WATERFALL_STEP;
 	}
 }
 
