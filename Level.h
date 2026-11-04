@@ -12,8 +12,11 @@
 #include "Enemy.h"
 #include "Trent.h"
 #include "Projectile.h"
+#include "Pickup.h"
+#include "Door.h"
 #include "Hud.h"
 #include <vector>
+#include <map>
 
 
 // Level contains all the entities of one stage of the game.
@@ -51,7 +54,7 @@ public:
 	void onEnter();                  // restarts the stage
 	void update(int deltaTime);
 	void render(int windowWidth, int windowHeight);
-	void keyPressed(int key);        // H toggles the heart power-up (debug until pickups exist), K kills every enemy, G god mode
+	void keyPressed(int key);        // D detonates a bomb (remote controller); debug: H toggles the heart, K kills every enemy, G god mode
 
 	// true si la caja (en pixeles del mapa) toca algun tile en llamas.
 	// Pensado tambien para los enemigos cuando se implementen.
@@ -62,19 +65,23 @@ private:
 	void loadLevel();
 	void updateCamera();
 	void cleanup();
-	void loadEnemies(const string &enemiesFile);
+	void loadEntities(const string &entitiesFile);   // enemies, boss, door, waterfalls and hidden items
 	void hitWaterfall(const glm::ivec2 &tile);  // una explosion llega a este tile
 	void updateWaterfalls(int deltaTime);
-	bool isDoorOpen() const;
+	bool isDoorOpen() const;         // no enemies left
 	bool playerAtDoor() const;
+	bool isClosedDoorTile(const glm::ivec2 &tile) const;
+	void destroyBush(const glm::ivec2 &tile);   // swaps it for sky and reveals the item hidden under it, if any
+	void updatePickups();
+	void applyPowerUp(PowerUpType type);
 	std::string levelMusic() const;  // music of this stage (boss, or one per stage)
 	void finishLevel();              // goes to the next level (or the menu after the last one)
 	void placeBomb();
 	void hurtPlayer();               // the heart absorbs the hit, otherwise the player dies
 	bool touchesPlayer(const glm::ivec2 &pos, const glm::ivec2 &size) const; // and the player can be hurt
-	void updateEnemies(int deltaTime);
-	void updateBoss(int deltaTime);
-	void updateProjectiles(int deltaTime);
+	void updateEnemies(int deltaTime, bool frozen);   // frozen: the timer stops them (dying ones still finish dying)
+	void updateBoss(int deltaTime, bool frozen);
+	void updateProjectiles(int deltaTime, bool frozen);
 	void bossAttack(TrentAttack attack);
 	void addEnemy(int type, const glm::ivec2 &pos, int dir);
 	void explodeBomb(int index);
@@ -89,25 +96,27 @@ private:
 	glm::vec2 spawnPos;
 	int deathTime;
 	bool bombKeyWasPressed;
-	Texture bombSheet, explosionSheet, enemySheet;
+	Texture bombSheet, explosionSheet, enemySheet, powerUpSheet, doorSheet;
 	vector<Enemy *> enemies;
 	vector<Bomb *> bombs;
 	vector<Explosion *> explosions;
 	vector<Projectile *> projectiles;
+	vector<Pickup *> pickups;
+	std::map<int, PowerUpType> itemUnderBush;   // key: row * map width + col, the bush that hides it
+	Door *door;                     // NULL if the level has no door
 	vector<Waterfall> waterfalls;
 	Trent *boss;                    // NULL if the level has no boss
 	float currentTime;
 	int timeLeft;                   // ms
 	int maxBombs;                   // bombs that can be on the map at the same time
 	int blastRange;                 // tiles the explosion reaches in each direction
+	bool remoteEnabled;             // remote controller: D detonates a bomb
+	int freezeTime;                 // ms left of the timer power-up: clock and enemies stopped
 	Hud hud;
 	LevelState state;
 	int stateTime;                  // ms since the current state started
-	bool bHasDoor;
-	bool bDoorWasOpen;              // to play the door sound once
 	bool bBossLevel;
 	int initialEnemies;             // without a door, the level is cleared once they are all gone
-	glm::ivec2 doorTile;
 	Texture clearTex, gameOverTex;
 	Sprite *clearSprite, *gameOverSprite;
 	glm::mat4 projection;

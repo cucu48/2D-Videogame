@@ -1,0 +1,2 @@
+# Stage1-5 entities: the boss Trent (occupies 2x2 tiles from here down and to the right)
+boss 6 1

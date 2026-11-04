@@ -18,6 +18,22 @@
 #define SCENE_FIRST_LEVEL 2
 #define NUM_LEVELS 5
 #define START_LIVES 3
+#define DEFAULT_MAX_BOMBS 1
+#define DEFAULT_BLAST_RANGE 1
+
+
+// Power-ups that stay with the player from one level to the next (like lives).
+// Timed ones (armor, timer freeze) are not kept.
+struct PowerUpState
+{
+	int maxBombs;
+	int blastRange;
+	float speedMul;
+	bool remote, wings, heart;
+
+	PowerUpState() : maxBombs(DEFAULT_MAX_BOMBS), blastRange(DEFAULT_BLAST_RANGE), speedMul(1.f),
+	                 remote(false), wings(false), heart(false) {}
+};
 
 
 // Game is a singleton (a class with a single instance) that represents our whole application
@@ -65,6 +81,9 @@ public:
 	int getLives() const { return lives; }
 	void loseLife() { if(lives > 0) lives--; }
 
+	// Power-ups carry over between levels and reset together with the lives
+	PowerUpState &powerUps() { return powerUpState; }
+
 	// Modo dios (tecla G): el jugador no puede morir. Se mantiene entre niveles.
 	bool isGodMode() const { return bGodMode; }
 	void toggleGodMode() { bGodMode = !bGodMode; }
@@ -83,6 +102,7 @@ private:
 	std::vector<Scene *> scenes;
 	int currentScene;
 	int lives;
+	PowerUpState powerUpState;
 	bool bGodMode;
 	int mouseX, mouseY; // last cursor position, in window pixels
 	ShaderProgram texProgram;
@@ -90,4 +110,4 @@ private:
 };
 
 
-#endif // _GAME_INCLUDE
+#endif // _GAME_INCLUDE

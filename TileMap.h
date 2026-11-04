@@ -49,6 +49,8 @@ public:
 	int getTile(int x, int y) const;
 	void setTile(int x, int y, int tile);
 	int getBlankTile() const { return blankTileCode; }
+	// Arbustos (linea BUSH del fichero del nivel): tiles solidos que las explosiones destruyen
+	bool isBush(int x, int y) const { return bushTile >= 0 && getTile(x, y) == bushTile; }
 	
 private:
 	vector<bool> solidTile;
@@ -67,6 +69,7 @@ private:
 	glm::vec2 tileTexSize;
 	int *map;
 	int blankTileCode;
+	int bushTile;                   // -1 si el nivel no tiene arbustos
 	glm::vec2 minCoords;            // para rehacer el VBO en setTile
 	ShaderProgram *program;
 };

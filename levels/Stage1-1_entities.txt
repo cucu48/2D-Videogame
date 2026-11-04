@@ -1,0 +1,17 @@
+# Stage1-1 entities. One per line: kind col row [args]
+# enemy col row type dir  (types: 0 Jacky, 1 Eyti, 2-4 jumpers, 5 Cloudy, 6 Springchicken, 7 Elekin Man, 8 Leaf; dir -1 left / 1 right)
+enemy 11 13 1 -1
+enemy 6 7 6 1
+enemy 3 4 2 1
+enemy 8 2 5 1
+enemy 11 10 0 1
+# door col row: the exit, solid until every enemy is dead
+door 9 7
+# waterfall col headRow bottomRow
+waterfall 3 9 13
+# item col row type: power-up hidden under the bush at col row
+# types: bombup fireup speedup remote armor fullfire heart timer wings
+item 3 1 fireup
+item 9 1 bombup
+item 13 1 heart
+item 8 5 speedup

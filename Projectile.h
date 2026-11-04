@@ -36,6 +36,7 @@ public:
 	bool isHarmful() const { return kind != FALLING_BOMB && !bPopping; }
 	void pop();                                // se deshace (al tocar al jugador o una pared)
 	bool hasLanded() const { return bLanded; } // solo FALLING_BOMB
+	bool isPopping() const { return bPopping; }
 	bool isFinished() const { return bFinished; }
 	glm::vec2 getPosition() const { return pos; }
 
