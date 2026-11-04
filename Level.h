@@ -24,12 +24,14 @@
 
 
 // Cascada: al darle con una explosion en la cabeza, el agua se retira hacia
-// arriba tile a tile y deja el paso libre.
+// arriba tile a tile. El tile final (el que toca el suelo) sube con el agua y
+// al acabar queda un unico tile de agua bajo la cabeza.
 struct Waterfall
 {
 	glm::ivec2 head;    // tile de la cabeza (no desaparece)
 	int bottomRow;      // ultima fila de agua
-	int nextRow;        // siguiente fila que se retira
+	int nextRow;        // fila inferior actual (la que lleva el tile final)
+	int endTile;        // tile del extremo inferior, el que toca el suelo
 	int timer;
 	bool bRaising;
 };

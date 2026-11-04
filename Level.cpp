@@ -23,7 +23,7 @@
 #define SPORE_SPEED 2.f
 #define BOMB_RAIN_RANGE 4
 #define BOMB_RAIN_FUSE 2000
-#define WATERFALL_STEP 90     // ms entre cada tile de agua que se retira
+#define WATERFALL_STEP 180    // ms entre cada tile de agua que se retira
 #define MAX_BOMBS_LIMIT 9     // Bomb Up
 #define MAX_BLAST_RANGE 4     // Fire Up / Full Fire
 #define ARMOR_TIME 10000      // ms de inmunidad de la chaqueta
@@ -592,6 +592,7 @@ void Level::loadEntities(const string &entitiesFile)
 			if(!(ss >> w.bottomRow) || w.bottomRow < row || w.bottomRow >= mapSize.y)
 				throw runtime_error(where + "waterfall needs 'col headRow bottomRow' with bottomRow >= headRow, inside the map");
 			w.nextRow = w.bottomRow;
+			w.endTile = map->getTile(col, w.bottomRow);
 			w.timer = 0;
 			w.bRaising = false;
 			waterfalls.push_back(w);
@@ -834,19 +835,21 @@ void Level::hitWaterfall(const glm::ivec2 &tile)
 }
 
 // El agua se retira de abajo arriba: cada WATERFALL_STEP ms la fila mas baja
-// pasa a ser cielo (no solido) hasta llegar a la cabeza.
+// pasa a ser cielo (no solido) y el tile final de la cascada se pone una fila
+// mas arriba. Se para cuando solo queda un tile de agua bajo la cabeza.
 void Level::updateWaterfalls(int deltaTime)
 {
 	for(size_t i = 0; i < waterfalls.size(); i++)
 	{
 		Waterfall &w = waterfalls[i];
-		if(!w.bRaising || w.nextRow <= w.head.y)
+		if(!w.bRaising || w.nextRow <= w.head.y + 1)
 			continue;
 		w.timer -= deltaTime;
 		if(w.timer > 0)
 			continue;
 		map->setTile(w.head.x, w.nextRow, map->getBlankTile());
 		w.nextRow--;
+		map->setTile(w.head.x, w.nextRow, w.endTile);
 		w.timer = WATERFALL_STEP;
 	}
 }
