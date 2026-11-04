@@ -4,6 +4,7 @@
 
 #include "Sprite.h"
 #include "TileMap.h"
+#include <string>
 
 
 // Player is basically a Sprite that represents the player. As such it has
@@ -52,6 +53,8 @@ private:
 	bool bDead;
 	bool bHeart;
 	bool bDancing;
+	std::string musicBeforeDance;   // se vuelve a poner al acabar el baile
+	bool musicBeforeDanceLoops;
 	float moveAccum;      // parte fraccionaria de MOVE_SPEED pendiente de aplicar
 	int invulnerableTime; // tras reaparecer, un rato sin poder morir (parpadea)
 	glm::ivec2 tileMapDispl, posPlayer;

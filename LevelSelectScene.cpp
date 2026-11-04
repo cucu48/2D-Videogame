@@ -1,6 +1,8 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "LevelSelectScene.h"
+#include "Audio.h"
+#include "Sounds.h"
 
 
 // The selector is drawn on a 160x144 virtual screen (the size of the art)
@@ -63,6 +65,7 @@ void LevelSelectScene::onEnter()
 	// the cursor may already be over a button when the scene is entered
 	Game &game = Game::instance();
 	updateHover(game.getMouseX(), game.getMouseY());
+	Audio::instance().playMusic(MUSIC_TITLE, true); // sigue la del menu si ya sonaba
 }
 
 void LevelSelectScene::update(int /*deltaTime*/)
@@ -98,7 +101,10 @@ void LevelSelectScene::keyPressed(int key)
 	else if(key == GLFW_KEY_DOWN || key == GLFW_KEY_RIGHT)
 		hovered = (hovered + 1) % NUM_LEVELS;
 	else if((key == GLFW_KEY_ENTER || key == GLFW_KEY_SPACE) && hovered >= 0)
+	{
+		Audio::instance().playSound(SFX_SELECT);
 		Game::instance().startLevel(hovered + 1);
+	}
 }
 
 void LevelSelectScene::mouseMove(int x, int y)
@@ -109,7 +115,10 @@ void LevelSelectScene::mouseMove(int x, int y)
 void LevelSelectScene::mousePress(int button)
 {
 	if(button == GLFW_MOUSE_BUTTON_LEFT && hovered >= 0)
+	{
+		Audio::instance().playSound(SFX_SELECT);
 		Game::instance().startLevel(hovered + 1);
+	}
 }
 
 // Highlights the button under the window position (x, y), or none

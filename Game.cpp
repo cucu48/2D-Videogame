@@ -5,6 +5,8 @@
 #include "MenuScene.h"
 #include "LevelSelectScene.h"
 #include "Level.h"
+#include "Audio.h"
+#include "Sounds.h"
 
 
 void Game::init()
@@ -22,6 +24,10 @@ void Game::init()
 		scenes.push_back(new Level(i));
 	for(size_t i = 0; i < scenes.size(); i++)
 		scenes[i]->init();
+
+	// Effects decoded in memory from the start, so they sound without delay
+	for(size_t i = 0; i < sizeof(ALL_SFX) / sizeof(ALL_SFX[0]); i++)
+		Audio::instance().preload(ALL_SFX[i]);
 
 	changeScene(SCENE_MENU);
 }

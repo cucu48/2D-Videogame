@@ -1,6 +1,8 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "MenuScene.h"
+#include "Audio.h"
+#include "Sounds.h"
 #include "Game.h"
 
 
@@ -47,6 +49,7 @@ void MenuScene::init()
 void MenuScene::onEnter()
 {
 	blinkTime = 0;
+	Audio::instance().playMusic(MUSIC_TITLE, true);
 }
 
 void MenuScene::update(int deltaTime)
@@ -72,5 +75,8 @@ void MenuScene::render(int windowWidth, int windowHeight)
 void MenuScene::keyPressed(int key)
 {
 	if(key == GLFW_KEY_SPACE)
+	{
+		Audio::instance().playSound(SFX_SELECT);
 		Game::instance().changeScene(SCENE_LEVEL_SELECT);
+	}
 }

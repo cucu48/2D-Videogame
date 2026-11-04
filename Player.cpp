@@ -4,6 +4,7 @@
 #include "Player.h"
 #include "Game.h"
 #include "Audio.h"
+#include "Sounds.h"
 
 
 #define JUMP_ANGLE_STEP 4
@@ -231,6 +232,7 @@ void Player::update(int deltaTime)
             if(Game::instance().getKey(GLFW_KEY_UP))
             {
                 bJumping = true;
+                Audio::instance().playSound(SFX_JUMP);
                 bRising = true;
                 bOnGround = false;
                 jumpAngle = 0;
@@ -297,6 +299,8 @@ void Player::toggleDance()
     bDancing = true;
     danceSprite->changeAnimation(0);
     danceSprite->setPosition(glm::vec2(float(tileMapDispl.x + posPlayer.x), float(tileMapDispl.y + posPlayer.y)));
+    musicBeforeDance = Audio::instance().currentMusic();
+    musicBeforeDanceLoops = Audio::instance().currentMusicLoops();
     Audio::instance().playMusic(DANCE_MUSIC, true);
 }
 
@@ -305,7 +309,11 @@ void Player::stopDance()
     if(!bDancing)
         return;
     bDancing = false;
-    Audio::instance().stopMusic();
+    // vuelve la musica que sonaba antes del baile
+    if(musicBeforeDance.empty())
+        Audio::instance().stopMusic();
+    else
+        Audio::instance().playMusic(musicBeforeDance, musicBeforeDanceLoops);
     sprite->changeAnimation(lookingRight ? STAND_RIGHT : STAND_LEFT);
 }
 

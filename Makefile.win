@@ -1,0 +1,39 @@
+# Build nativa en Windows con MSYS2 (terminal "MSYS2 UCRT64"):
+#   pacman -S make                 (solo la primera vez: make no viene con MSYS2)
+#   make -f Makefile.win install   (instala las librerias, solo la primera vez)
+#   make -f Makefile.win run
+# SOIL no existe en MSYS2: las imagenes se cargan con third_party/stb_image.h
+
+BUILD_DIR := build-win
+TARGET := $(BUILD_DIR)/game.exe
+
+CXX := g++
+CPPFLAGS += $(shell pkg-config --cflags glew glfw3 freetype2) -DUSE_STB_IMAGE
+CXXFLAGS ?= -std=c++11 -Wall -Wextra -Wpedantic -O0 -g
+LDLIBS += $(shell pkg-config --libs glew glfw3 freetype2) -lopengl32
+
+SOURCES := $(wildcard *.cpp)
+OBJECTS := $(SOURCES:%.cpp=$(BUILD_DIR)/%.o)
+DEPS := $(OBJECTS:.o=.d)
+
+.PHONY: all clean run install
+
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+$(BUILD_DIR)/%.o: %.cpp
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -MMD -MP -c $< -o $@
+
+run: $(TARGET)
+	./$(TARGET)
+
+clean:
+	$(RM) -r $(BUILD_DIR)
+
+install:
+	pacman -S --needed make mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-glew mingw-w64-ucrt-x86_64-glfw mingw-w64-ucrt-x86_64-glm mingw-w64-ucrt-x86_64-freetype
+
+-include $(DEPS)

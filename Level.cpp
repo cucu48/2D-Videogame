@@ -3,6 +3,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "Level.h"
 #include "Game.h"
+#include "Audio.h"
+#include "Sounds.h"
 #include <algorithm>
 #include <fstream>
 #include <sstream>
@@ -16,7 +18,7 @@
 #define RESPAWN_TIME 2000
 #define VIEW_W 320
 #define VIEW_H 288
-#define CLEAR_TIME 2500     // ms showing "WORLD CLEAR!!" before the next level
+#define CLEAR_TIME 5500     // ms showing "WORLD CLEAR!!" before the next level (lo que dura music_clear)
 #define GAME_OVER_TIME 3000 // ms showing "GAME OVER" before going back to the menu
 #define TRENT_TYPE 9          // en el fichero de enemigos, el tipo 9 es el jefe Trent
 #define BUBBLE_SPEED 1.5f
@@ -128,6 +130,16 @@ void Level::loadLevel()
 	timeLeft = LEVEL_TIME;
 	maxBombs = DEFAULT_MAX_BOMBS;
 	blastRange = DEFAULT_BLAST_RANGE;
+	bBossLevel = (boss != NULL);
+	bDoorWasOpen = isDoorOpen();
+	Audio::instance().playMusic(levelMusic(), true);
+}
+
+std::string Level::levelMusic() const
+{
+	if(bBossLevel)
+		return MUSIC_BOSS;
+	return MUSIC_STAGE + to_string((number - 1) % NUM_STAGE_MUSICS + 1);
 }
 
 void Level::update(int deltaTime)
@@ -204,7 +216,14 @@ void Level::update(int deltaTime)
 		player->kill();
 		deathTime = 0;
 		Game::instance().loseLife();
+		Audio::instance().playMusic(MUSIC_DEATH, false);
 	}
+
+	// Sonido al abrirse la puerta (ya no quedan enemigos)
+	bool doorOpen = isDoorOpen();
+	if(doorOpen && !bDoorWasOpen && bHasDoor)
+		Audio::instance().playSound(SFX_DOOR_OPEN);
+	bDoorWasOpen = doorOpen;
 
 	if(player->isDead())
 	{
@@ -215,10 +234,12 @@ void Level::update(int deltaTime)
 			{
 				state = LEVEL_GAME_OVER;
 				stateTime = 0;
+				Audio::instance().playMusic(MUSIC_GAME_OVER, false);
 			}
 			else
 			{
 				player->respawn(spawnPos);
+				Audio::instance().playMusic(levelMusic(), true);
 				if(timeLeft == 0)
 					timeLeft = LEVEL_TIME;
 			}
@@ -231,6 +252,7 @@ void Level::update(int deltaTime)
 		player->stopDance();
 		state = LEVEL_CLEARED;
 		stateTime = 0;
+		Audio::instance().playMusic(MUSIC_CLEAR, false);
 	}
 
 	updateCamera();
@@ -259,7 +281,10 @@ void Level::updateEnemies(int deltaTime)
 		Enemy *enemy = enemies[i];
 		enemy->update(deltaTime, playerCenter, !player->isDead());
 		if(!enemy->isDying() && isOnFire(enemy->hitboxPos(), enemy->hitboxSize()))
+		{
 			enemy->kill();
+			Audio::instance().playSound(SFX_ENEMY_DIE);
+		}
 		if(!enemy->isDying() && touchesPlayer(enemy->hitboxPos(), enemy->hitboxSize()))
 			hurtPlayer();
 
@@ -296,13 +321,17 @@ void Level::updateBoss(int deltaTime)
 	boss->update(deltaTime, playerCenter, !player->isDead());
 	if(!boss->isDying())
 	{
-		if(isOnFire(boss->hitboxPos(), boss->hitboxSize(), true) && boss->hit() && boss->isDying())
+		if(isOnFire(boss->hitboxPos(), boss->hitboxSize(), true) && boss->hit())
 		{
+			Audio::instance().playSound(SFX_BOSS_HIT);
 			// al morir se lleva con el sus hojas y sus proyectiles
-			for(size_t i = 0; i < enemies.size(); i++)
-				enemies[i]->kill();
-			for(size_t i = 0; i < projectiles.size(); i++)
-				projectiles[i]->pop();
+			if(boss->isDying())
+			{
+				for(size_t i = 0; i < enemies.size(); i++)
+					enemies[i]->kill();
+				for(size_t i = 0; i < projectiles.size(); i++)
+					projectiles[i]->pop();
+			}
 		}
 		else if(touchesPlayer(boss->hitboxPos(), boss->hitboxSize()))
 			hurtPlayer();
@@ -530,6 +559,8 @@ void Level::keyPressed(int key)
 			enemies[i]->kill();
 		if(boss != NULL)
 			boss->kill();
+		if(!enemies.empty() || boss != NULL)
+			Audio::instance().playSound(SFX_ENEMY_DIE);
 		for(size_t i = 0; i < projectiles.size(); i++)
 			projectiles[i]->pop();
 	}
@@ -543,12 +574,14 @@ void Level::hurtPlayer()
 	if(player->hasHeart())
 	{
 		player->setHeart(false);
+		Audio::instance().playSound(SFX_HURT);
 		player->startInvulnerable();
 		return;
 	}
 	player->kill();
 	deathTime = 0;
 	Game::instance().loseLife();
+	Audio::instance().playMusic(MUSIC_DEATH, false);
 }
 
 void Level::placeBomb()
@@ -570,6 +603,7 @@ void Level::placeBomb()
 	Bomb *bomb = new Bomb();
 	bomb->init(tile, tileSize, glm::ivec2(0, 0), &bombSheet, Game::instance().getTexProgram());
 	bombs.push_back(bomb);
+	Audio::instance().playSound(SFX_BOMB_PLACE);
 }
 
 // La explosion llega 'range' tiles en cada direccion (las bombas de Trent solo
@@ -587,6 +621,7 @@ void Level::explodeBomb(int index)
 	bombs.erase(bombs.begin() + index);
 
 	addExplosion(tile, EXPLOSION_CENTER, fromEnemy);
+	Audio::instance().playSound(SFX_EXPLOSION);
 	const glm::ivec2 dirs[4] = { glm::ivec2(0, -1), glm::ivec2(0, 1), glm::ivec2(-1, 0), glm::ivec2(1, 0) };
 	const ExplosionPiece ends[4] = { EXPLOSION_UP, EXPLOSION_DOWN, EXPLOSION_LEFT, EXPLOSION_RIGHT };
 	for(int d = horizontalOnly ? 2 : 0; d < 4; d++)
@@ -627,6 +662,7 @@ void Level::hitWaterfall(const glm::ivec2 &tile)
 		if(waterfalls[i].head == tile && !waterfalls[i].bRaising)
 		{
 			waterfalls[i].bRaising = true;
+			Audio::instance().playSound(SFX_WATERFALL);
 			waterfalls[i].timer = 0;
 		}
 }

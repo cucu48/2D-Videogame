@@ -67,6 +67,7 @@ private:
 	void updateWaterfalls(int deltaTime);
 	bool isDoorOpen() const;
 	bool playerAtDoor() const;
+	std::string levelMusic() const;  // music of this stage (boss, or one per stage)
 	void finishLevel();              // goes to the next level (or the menu after the last one)
 	void placeBomb();
 	void hurtPlayer();               // the heart absorbs the hit, otherwise the player dies
@@ -103,6 +104,8 @@ private:
 	LevelState state;
 	int stateTime;                  // ms since the current state started
 	bool bHasDoor;
+	bool bDoorWasOpen;              // to play the door sound once
+	bool bBossLevel;
 	int initialEnemies;             // without a door, the level is cleared once they are all gone
 	glm::ivec2 doorTile;
 	Texture clearTex, gameOverTex;
