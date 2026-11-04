@@ -145,7 +145,7 @@ void Level::loadLevel()
 	stateTime = 0;
 	deathTime = 0;
 	bombKeyWasPressed = false;
-	updateCamera();
+	updateCamera(true);
 	currentTime = 0.0f;
 	timeLeft = LEVEL_TIME;
 	maxBombs = carried.maxBombs;
@@ -501,10 +501,14 @@ void Level::finishLevel()
 		Game::instance().changeScene(SCENE_MENU);
 }
 
-// Centra la camara en el jugador sin salirse del mapa. Si el mapa es mas
-// pequeno que la vista en un eje, lo centra en ese eje.
-void Level::updateCamera()
+// Camara con zona muerta: el jugador se mueve libremente dentro de un
+// rectangulo centrado en la pantalla sin que la camara se mueva; al tocar su
+// borde la camara lo sigue. Siempre se mantiene dentro del mapa (si el mapa es
+// mas pequeno que la vista en un eje, se centra en ese eje).
+// snap = true centra la camara en el jugador (inicio de nivel).
+void Level::updateCamera(bool snap)
 {
+	const glm::vec2 deadHalf(VIEW_W / 6.f, VIEW_H / 6.f); // zona muerta = 1/3 de la vista
 	glm::vec2 mapPx = glm::vec2(map->getMapSize()) * float(map->getTileSize());
 	glm::vec2 viewPx(VIEW_W, VIEW_H);
 	glm::vec2 target = glm::vec2(player->hitboxPos()) + glm::vec2(player->hitboxSize()) / 2.f;
@@ -513,10 +517,22 @@ void Level::updateCamera()
 	{
 		float range = mapPx[axis] - viewPx[axis];
 		if(range <= 0.f)
-			camera[axis] = range / 2.f;
+		{
+			camera[axis] = std::floor(range / 2.f);
+			continue;
+		}
+		float cam = camera[axis];
+		if(snap)
+			cam = target[axis] - viewPx[axis] / 2.f;
 		else
-			camera[axis] = glm::clamp(target[axis] - viewPx[axis] / 2.f, 0.f, range);
-		camera[axis] = std::floor(camera[axis]);
+		{
+			float center = cam + viewPx[axis] / 2.f;
+			if(target[axis] < center - deadHalf[axis])
+				cam = target[axis] + deadHalf[axis] - viewPx[axis] / 2.f;
+			else if(target[axis] > center + deadHalf[axis])
+				cam = target[axis] - deadHalf[axis] - viewPx[axis] / 2.f;
+		}
+		camera[axis] = std::floor(glm::clamp(cam, 0.f, range));
 	}
 }
 

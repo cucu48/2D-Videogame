@@ -65,7 +65,7 @@ public:
 
 private:
 	void loadLevel();
-	void updateCamera();
+	void updateCamera(bool snap = false);
 	void cleanup();
 	void loadEntities(const string &entitiesFile);   // enemies, boss, door, waterfalls and hidden items
 	void hitWaterfall(const glm::ivec2 &tile);  // una explosion llega a este tile
