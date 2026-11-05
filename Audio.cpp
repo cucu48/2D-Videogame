@@ -32,8 +32,10 @@ struct Audio::Impl
 {
 	ma_context context;
 	ma_engine engine;
-	ma_sound music;
-	bool bMusicLoaded;
+	ma_sound *music;        // current track, NULL if none
+	ma_sound *paused;       // track put aside by pushMusic, kept at its position
+	std::string pausedFile;
+	bool pausedLoop;
 };
 
 
@@ -50,6 +52,7 @@ Audio::~Audio()
 	if(impl != NULL)
 	{
 		stopMusic();
+		dropPaused();
 		if(bInitialized)
 		{
 			for(map<string, vector<void *> >::iterator it = voices.begin(); it != voices.end(); ++it)
@@ -73,7 +76,9 @@ bool Audio::init()
 	if(bFailed)
 		return false;
 	impl = new Impl();
-	impl->bMusicLoaded = false;
+	impl->music = NULL;
+	impl->paused = NULL;
+	impl->pausedLoop = false;
 
 	// Only real outputs: without this, miniaudio silently falls back to its
 	// "null" backend (plays nothing) when it can't reach the sound server.
@@ -125,24 +130,27 @@ bool Audio::resolve(const string &file, string &path)
 
 bool Audio::playMusic(const string &file, bool loop)
 {
-	if(impl != NULL && impl->bMusicLoaded && file == musicFile && ma_sound_is_playing(&impl->music))
+	if(impl != NULL && impl->music != NULL && file == musicFile && ma_sound_is_playing(impl->music))
 		return true;
 	string path;
 	if(!init())
 		return false;
 	stopMusic();
+	dropPaused();   // another track takes over: the paused one won't come back
 	musicFile = file;
 	bMusicLoop = loop;
 	if(!resolve(file, path))
 		return false;
-	if(ma_sound_init_from_file(&impl->engine, path.c_str(), MA_SOUND_FLAG_STREAM, NULL, NULL, &impl->music) != MA_SUCCESS)
+	ma_sound *s = new ma_sound;
+	if(ma_sound_init_from_file(&impl->engine, path.c_str(), MA_SOUND_FLAG_STREAM, NULL, NULL, s) != MA_SUCCESS)
 	{
+		delete s;
 		if(warned.insert(path).second)
 			cerr << "Audio: could not load " << path << endl;
 		return false;
 	}
-	impl->bMusicLoaded = true;
-	ma_sound_set_looping(&impl->music, loop ? MA_TRUE : MA_FALSE);
+	impl->music = s;
+	ma_sound_set_looping(s, loop ? MA_TRUE : MA_FALSE);
 	// Optional loop points: "<file>.loop" holds the first and the end frame of
 	// the part that repeats, so the intro only sounds once and the loop is seamless
 	if(loop)
@@ -150,20 +158,64 @@ bool Audio::playMusic(const string &file, bool loop)
 		ifstream lf((file + ".loop").c_str());
 		unsigned long long loopBegin, loopEnd;
 		if(lf >> loopBegin >> loopEnd && loopEnd > loopBegin)
-			ma_data_source_set_loop_point_in_pcm_frames(ma_sound_get_data_source(&impl->music), loopBegin, loopEnd);
+			ma_data_source_set_loop_point_in_pcm_frames(ma_sound_get_data_source(s), loopBegin, loopEnd);
 	}
-	ma_sound_start(&impl->music);
+	ma_sound_start(s);
 	return true;
 }
 
 void Audio::stopMusic()
 {
 	musicFile.clear();
-	if(impl == NULL || !impl->bMusicLoaded)
+	if(impl == NULL || impl->music == NULL)
 		return;
-	ma_sound_stop(&impl->music);
-	ma_sound_uninit(&impl->music);
-	impl->bMusicLoaded = false;
+	ma_sound_stop(impl->music);
+	ma_sound_uninit(impl->music);
+	delete impl->music;
+	impl->music = NULL;
+}
+
+void Audio::dropPaused()
+{
+	if(impl == NULL || impl->paused == NULL)
+		return;
+	ma_sound_uninit(impl->paused);
+	delete impl->paused;
+	impl->paused = NULL;
+}
+
+// Pauses the current track where it is and plays another one on top
+void Audio::pushMusic(const string &file, bool loop)
+{
+	if(!init())
+		return;
+	dropPaused();
+	string prevFile = musicFile;
+	bool prevLoop = bMusicLoop;
+	ma_sound *prev = impl->music;
+	if(prev != NULL)
+		ma_sound_stop(prev);   // stop keeps the position: start resumes from there
+	impl->music = NULL;
+	musicFile.clear();
+	playMusic(file, loop);
+	impl->paused = prev;
+	impl->pausedFile = prevFile;
+	impl->pausedLoop = prevLoop;
+}
+
+// Stops the pushed track and resumes the paused one from where it was
+void Audio::popMusic()
+{
+	if(impl == NULL)
+		return;
+	stopMusic();
+	if(impl->paused == NULL)
+		return;
+	impl->music = impl->paused;
+	impl->paused = NULL;
+	musicFile = impl->pausedFile;
+	bMusicLoop = impl->pausedLoop;
+	ma_sound_start(impl->music);
 }
 
 // Creates one more voice for a sound effect, fully decoded in memory. The

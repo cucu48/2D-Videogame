@@ -16,6 +16,8 @@
 #define HITBOX_HEIGHT 32
 #define INVULNERABLE_TIME 2000
 #define DANCE_MUSIC "sounds/default_dance.mp3"
+#define JUMP_COOLDOWN 450  // ms minimos entre el inicio de un salto y el siguiente (un salto
+                           // completo dura ~780 ms; solo se nota si un techo lo corta)
 #define CORNER_TOLERANCE 8 // px que se puede empujar al jugador para colarse por un hueco
 
 
@@ -64,6 +66,7 @@ void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
 	bDancing = false;
 	moveAccum = 0.f;
 	invulnerableTime = 0;
+	jumpCooldown = 0;
 	spritesheet.loadFromFile("images/player.png", TEXTURE_PIXEL_FORMAT_RGBA);
 	sprite = Sprite::createSprite(glm::ivec2(32, 32), glm::vec2(0.25, 0.25), &spritesheet, &shaderProgram);
 	sprite->setNumberAnimations(9);
@@ -132,6 +135,8 @@ void Player::update(int deltaTime)
     sprite->update(deltaTime);
     if(invulnerableTime > 0)
         invulnerableTime -= deltaTime;
+    if(jumpCooldown > 0)
+        jumpCooldown -= deltaTime;
 
     // muerto: solo se reproduce la animacion de muerte, sin control ni gravedad
     if(bDead)
@@ -229,8 +234,11 @@ void Player::update(int deltaTime)
         if(bOnGround)
         {
             bJumping = false;
-            if(Game::instance().getKey(GLFW_KEY_UP))
+            // con un techo justo encima el salto se corta enseguida: el cooldown
+            // evita poder spamearlo
+            if(Game::instance().getKey(GLFW_KEY_UP) && jumpCooldown <= 0)
             {
+                jumpCooldown = JUMP_COOLDOWN;
                 bJumping = true;
                 Audio::instance().playSound(SFX_JUMP);
                 bRising = true;
@@ -299,9 +307,8 @@ void Player::toggleDance()
     bDancing = true;
     danceSprite->changeAnimation(0);
     danceSprite->setPosition(glm::vec2(float(tileMapDispl.x + posPlayer.x), float(tileMapDispl.y + posPlayer.y)));
-    musicBeforeDance = Audio::instance().currentMusic();
-    musicBeforeDanceLoops = Audio::instance().currentMusicLoops();
-    Audio::instance().playMusic(DANCE_MUSIC, true);
+    // la musica del mundo se pausa y sigue por donde iba al acabar el baile
+    Audio::instance().pushMusic(DANCE_MUSIC, true);
 }
 
 void Player::stopDance()
@@ -309,11 +316,8 @@ void Player::stopDance()
     if(!bDancing)
         return;
     bDancing = false;
-    // vuelve la musica que sonaba antes del baile
-    if(musicBeforeDance.empty())
-        Audio::instance().stopMusic();
-    else
-        Audio::instance().playMusic(musicBeforeDance, musicBeforeDanceLoops);
+    // vuelve la musica que sonaba antes del baile, por donde iba
+    Audio::instance().popMusic();
     sprite->changeAnimation(lookingRight ? STAND_RIGHT : STAND_LEFT);
 }
 

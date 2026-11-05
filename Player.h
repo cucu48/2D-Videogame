@@ -53,10 +53,9 @@ private:
 	bool bDead;
 	bool bHeart;
 	bool bDancing;
-	std::string musicBeforeDance;   // se vuelve a poner al acabar el baile
-	bool musicBeforeDanceLoops;
 	float moveAccum;      // parte fraccionaria de MOVE_SPEED pendiente de aplicar
 	int invulnerableTime; // tras reaparecer, un rato sin poder morir (parpadea)
+	int jumpCooldown;     // ms hasta poder volver a saltar (JUMP_COOLDOWN)
 	glm::ivec2 tileMapDispl, posPlayer;
 	int jumpAngle, startY;
 	Texture spritesheet;

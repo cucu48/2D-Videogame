@@ -33,6 +33,10 @@ public:
 	// If the same track is already playing it is not restarted
 	bool playMusic(const std::string &file, bool loop);
 	void stopMusic();
+	// Plays a track on top of the current one, which is paused where it is
+	// (the dance), and popMusic goes back to it from that same point
+	void pushMusic(const std::string &file, bool loop);
+	void popMusic();
 	const std::string &currentMusic() const { return musicFile; }
 	bool currentMusicLoops() const { return bMusicLoop; }
 
@@ -42,6 +46,7 @@ public:
 
 private:
 	bool init();
+	void dropPaused();
 	bool resolve(const std::string &file, std::string &path); // adds the extension; false if missing
 	void *newVoice(const std::string &file);                   // ma_sound* ready to play, or NULL
 
