@@ -126,7 +126,9 @@ void Projectile::update(int deltaTime, TileMap *map)
 		pos += vel;
 		travelled += glm::length(vel);
 		glm::ivec2 hb = hitboxPos();
-		if(map->collisionBox(hb, hitboxSize()) || (kind == BUBBLE && travelled >= BUBBLE_RANGE))
+		// las esporas (bolas de energia de Trent) atraviesan cualquier bloque;
+		// solo desaparecen al salir del mapa o al tocar al jugador
+		if(kind == BUBBLE && (map->collisionBox(hb, hitboxSize()) || travelled >= BUBBLE_RANGE))
 			pop();
 		glm::ivec2 mapPx = map->getMapSize() * map->getTileSize();
 		if(hb.x < -32 || hb.y < -32 || hb.x > mapPx.x || hb.y > mapPx.y)

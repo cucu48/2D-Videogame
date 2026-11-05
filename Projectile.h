@@ -8,7 +8,8 @@
 
 // Proyectiles de los enemigos:
 //   BUBBLE:       burbuja de Cloudy, va hacia el jugador hasta 4 tiles
-//   SPORE:        espora de polen de Trent, baja hasta chocar con una pared
+//   SPORE:        espora de polen de Trent (bola de energia), baja atravesando
+//                 cualquier bloque hasta salir del mapa
 //   FALLING_BOMB: bomba de la lluvia de bombas de Trent; cae con gravedad y
 //                 al tocar el suelo Level la cambia por una Bomb de verdad
 // Todos hacen dano al jugador al tocarle (la bomba que cae no).
