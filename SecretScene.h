@@ -7,7 +7,7 @@
 #include "TexturedQuad.h"
 #include "Sprite.h"
 #include "DitherFade.h"
-#include "Text.h"
+#include "Credits.h"
 
 
 // Final secreto: si se derrota al jefe con los 4 bongs, aparece un quinto en el
@@ -41,8 +41,7 @@ private:
 private:
 	Texture bgTex, fgTex, fxTex, promptTex;
 	TexturedQuad *bgQuad, *fgQuad, *promptQuad;
-	Text text;
-	bool bText;                      // la fuente se ha cargado bien
+	Credits credits;
 	TexturedQuad *bongQuads[2][3];   // [normal, espejo][reposo, calada A, calada B]
 	TexturedQuad *smokeQuads[4];     // de pequena a grande
 	DitherFade fade;

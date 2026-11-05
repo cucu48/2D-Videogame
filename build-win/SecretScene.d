@@ -1,6 +1,6 @@
 build-win/SecretScene.o: SecretScene.cpp SecretScene.h Scene.h \
  ShaderProgram.h Shader.h Texture.h TexturedQuad.h Sprite.h \
- AnimKeyframes.h DitherFade.h Text.h \
+ AnimKeyframes.h DitherFade.h Credits.h Text.h \
  C:/msys64/ucrt64/include/freetype2/ft2build.h \
  C:/msys64/ucrt64/include/freetype2/freetype/config/ftheader.h \
  C:/msys64/ucrt64/include/freetype2/freetype/freetype.h \
@@ -26,6 +26,7 @@ TexturedQuad.h:
 Sprite.h:
 AnimKeyframes.h:
 DitherFade.h:
+Credits.h:
 Text.h:
 C:/msys64/ucrt64/include/freetype2/ft2build.h:
 C:/msys64/ucrt64/include/freetype2/freetype/config/ftheader.h:

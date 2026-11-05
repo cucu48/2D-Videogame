@@ -1,7 +1,6 @@
 build-win/Game.o: Game.cpp Game.h Scene.h ShaderProgram.h Shader.h \
- MenuScene.h Sprite.h Texture.h AnimKeyframes.h LevelSelectScene.h \
- Level.h TileMap.h Player.h Bomb.h Explosion.h Enemy.h Trent.h \
- Projectile.h Pickup.h Door.h Hud.h Text.h \
+ DitherFade.h Texture.h TexturedQuad.h MenuScene.h Sprite.h \
+ AnimKeyframes.h TextMenu.h Text.h \
  C:/msys64/ucrt64/include/freetype2/ft2build.h \
  C:/msys64/ucrt64/include/freetype2/freetype/config/ftheader.h \
  C:/msys64/ucrt64/include/freetype2/freetype/freetype.h \
@@ -16,28 +15,22 @@ build-win/Game.o: Game.cpp Game.h Scene.h ShaderProgram.h Shader.h \
  C:/msys64/ucrt64/include/freetype2/freetype/ftimage.h \
  C:/msys64/ucrt64/include/freetype2/freetype/fterrors.h \
  C:/msys64/ucrt64/include/freetype2/freetype/ftmoderr.h \
- C:/msys64/ucrt64/include/freetype2/freetype/fterrdef.h TexturedQuad.h \
- VsScreen.h DitherFade.h SecretScene.h Audio.h Sounds.h
+ C:/msys64/ucrt64/include/freetype2/freetype/fterrdef.h \
+ LevelSelectScene.h Level.h TileMap.h Player.h Bomb.h Explosion.h Enemy.h \
+ Trent.h Projectile.h Pickup.h Door.h Hud.h VsScreen.h Instructions.h \
+ SecretScene.h Credits.h InstructionsScene.h CreditsScene.h Audio.h \
+ Sounds.h
 Game.h:
 Scene.h:
 ShaderProgram.h:
 Shader.h:
+DitherFade.h:
+Texture.h:
+TexturedQuad.h:
 MenuScene.h:
 Sprite.h:
-Texture.h:
 AnimKeyframes.h:
-LevelSelectScene.h:
-Level.h:
-TileMap.h:
-Player.h:
-Bomb.h:
-Explosion.h:
-Enemy.h:
-Trent.h:
-Projectile.h:
-Pickup.h:
-Door.h:
-Hud.h:
+TextMenu.h:
 Text.h:
 C:/msys64/ucrt64/include/freetype2/ft2build.h:
 C:/msys64/ucrt64/include/freetype2/freetype/config/ftheader.h:
@@ -54,9 +47,23 @@ C:/msys64/ucrt64/include/freetype2/freetype/ftimage.h:
 C:/msys64/ucrt64/include/freetype2/freetype/fterrors.h:
 C:/msys64/ucrt64/include/freetype2/freetype/ftmoderr.h:
 C:/msys64/ucrt64/include/freetype2/freetype/fterrdef.h:
-TexturedQuad.h:
+LevelSelectScene.h:
+Level.h:
+TileMap.h:
+Player.h:
+Bomb.h:
+Explosion.h:
+Enemy.h:
+Trent.h:
+Projectile.h:
+Pickup.h:
+Door.h:
+Hud.h:
 VsScreen.h:
-DitherFade.h:
+Instructions.h:
 SecretScene.h:
+Credits.h:
+InstructionsScene.h:
+CreditsScene.h:
 Audio.h:
 Sounds.h:

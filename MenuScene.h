@@ -9,7 +9,8 @@
 
 
 // Main menu: background, title and the buttons (in Catalan): "Continuar" (only
-// when a game was left from the pause menu), "Jugar" / "Nova partida" and "Sortir".
+// when a game was left from the pause menu), "Jugar" / "Nova partida",
+// "Instruccions", "Credits" and "Sortir".
 
 
 class MenuScene : public Scene

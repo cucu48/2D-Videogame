@@ -55,62 +55,6 @@ static const Smoker SMOKERS[] = {
 #define NUM_SMOKERS int(sizeof(SMOKERS) / sizeof(SMOKERS[0]))
 
 
-// Lineas de los creditos, de la primera en salir a la ultima. size 0 = hueco.
-// En catalan. La fuente solo tiene ASCII: sin acentos (y la ela geminada con punto).
-struct CreditLine
-{
-	const char *text;
-	int size;
-	float r, g, b;
-};
-
-#define TITLE 16
-#define HEAD 12
-#define BODY 10
-#define GOLD 1.f, 0.85f, 0.35f
-#define PINK 1.f, 0.62f, 0.62f
-#define CREAM 1.f, 0.95f, 0.85f
-static const CreditLine CREDITS[] = {
-	{ "POCKET BOMBERMAN", TITLE, GOLD },
-	{ "", 0, CREAM },
-	{ "UN JOC DE", BODY, CREAM },
-	{ "RUBEN GARCIA", HEAD, PINK },
-	{ "I PAU CARULLA", HEAD, PINK },
-	{ "", 0, CREAM },
-	{ "VIDEOJOCS - FIB - UPC", BODY, CREAM },
-	{ "", 0, CREAM },
-	{ "", 0, CREAM },
-	{ "RUBEN GARCIA", HEAD, GOLD },
-	{ "FISIQUES I COL.LISIONS", BODY, CREAM },
-	{ "BOMBES", BODY, CREAM },
-	{ "ENEMICS I BOSS FINAL", BODY, CREAM },
-	{ "CASCADES", BODY, CREAM },
-	{ "VIDES, TEMPS I GAME OVER", BODY, CREAM },
-	{ "MUSICA I SO", BODY, CREAM },
-	{ "PANTALLA VS", BODY, CREAM },
-	{ "BONGS I FINAL SECRET", BODY, CREAM },
-	{ "VERSIO PER A WINDOWS", BODY, CREAM },
-	{ "", 0, CREAM },
-	{ "", 0, CREAM },
-	{ "PAU CARULLA", HEAD, GOLD },
-	{ "ESCENES I MENUS", BODY, CREAM },
-	{ "MAPES DELS NIVELLS", BODY, CREAM },
-	{ "CAMERA I HUD", BODY, CREAM },
-	{ "PORTA I ARBUSTOS", BODY, CREAM },
-	{ "POWER-UPS", BODY, CREAM },
-	{ "REACCIO EN CADENA", BODY, CREAM },
-	{ "", 0, CREAM },
-	{ "", 0, CREAM },
-	{ "BASAT EN", BODY, CREAM },
-	{ "POCKET BOMBERMAN", HEAD, GOLD },
-	{ "HUDSON SOFT, 1998", BODY, CREAM },
-	{ "", 0, CREAM },
-	{ "", 0, CREAM },
-	{ "", 0, CREAM },
-	{ "GRACIES PER JUGAR", TITLE, GOLD },
-};
-#define NUM_CREDITS int(sizeof(CREDITS) / sizeof(CREDITS[0]))
-#define CREDITS_GAP 6              // px entre lineas (los huecos ocupan BODY + CREDITS_GAP)
 
 
 static TexturedQuad *makeQuad(ShaderProgram &program, float w, float h, glm::vec2 uv0, glm::vec2 uv1)
@@ -139,7 +83,6 @@ static void loadTex(Texture &tex, const char *file)
 SecretScene::SecretScene()
 {
 	bgQuad = fgQuad = promptQuad = NULL;
-	bText = false;
 	for(int i = 0; i < 2; i++)
 		for(int j = 0; j < 3; j++)
 			bongQuads[i][j] = NULL;
@@ -172,7 +115,7 @@ void SecretScene::init()
 	loadTex(promptTex, "images/PressSpace.png");
 	bgQuad = makeQuad(program, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, glm::vec2(0.f), glm::vec2(1.f));
 	fgQuad = makeQuad(program, VIRTUAL_WIDTH, VIRTUAL_HEIGHT, glm::vec2(0.f), glm::vec2(1.f));
-	bText = text.init("images/bytebounce.medium.ttf");
+	credits.init();
 	promptQuad = makeQuad(program, float(promptTex.width()), float(promptTex.height()), glm::vec2(0.f), glm::vec2(1.f));
 	for(int row = 0; row < 2; row++)
 		for(int f = 0; f < 3; f++)
@@ -223,41 +166,14 @@ void SecretScene::renderCell(TexturedQuad *quad, const glm::vec2 &pos, float sca
 
 void SecretScene::renderCredits(const glm::mat4 &projection)
 {
-	if(!bText || time < CREDITS_START)
-		return;
-	text.setProjection(projection);
-
-	// Distancia de cada linea a la primera: se leen de arriba a abajo y suben
-	float scroll = (time - CREDITS_START) * CREDITS_SPEED;
-	float offset[NUM_CREDITS];
-	float acc = 0.f;
-	for(int i = 0; i < NUM_CREDITS; i++)
-	{
-		offset[i] = acc;
-		acc += (CREDITS[i].size > 0 ? CREDITS[i].size : BODY) + CREDITS_GAP;
-	}
-	// la ultima ("GRACIES PER JUGAR") se para en el cielo y se queda
-	scroll = std::min(scroll, CREDITS_BOTTOM + offset[NUM_CREDITS - 1] - CREDITS_LAST_Y);
-
-	for(int i = 0; i < NUM_CREDITS; i++)
-	{
-		const CreditLine &line = CREDITS[i];
-		float base = std::floor(CREDITS_BOTTOM - scroll + offset[i]);
-		if(line.size == 0 || base > CREDITS_BOTTOM + line.size || base < 0.f)
-			continue;
-		// se apagan al llegar arriba (abajo las tapan las colinas)
-		float alpha = (base - line.size - CREDITS_FADE_TO) / (CREDITS_FADE_FROM - CREDITS_FADE_TO);
-		alpha = std::max(0.f, std::min(1.f, alpha));
-		if(alpha <= 0.f)
-			continue;
-		std::string str(line.text);
-		int width = 0;
-		for(size_t c = 0; c < str.size(); c++)
-			width += text.charAdvance(str[c], line.size);
-		glm::vec2 pos(std::floor((VIRTUAL_WIDTH - width) / 2.f), base);
-		text.render(str, pos + glm::vec2(1.f, 1.f), line.size, glm::vec4(0.25f, 0.08f, 0.2f, alpha * 0.8f));
-		text.render(str, pos, line.size, glm::vec4(line.r, line.g, line.b, alpha));
-	}
+	CreditsLayout layout;
+	layout.width = VIRTUAL_WIDTH;
+	layout.bottom = CREDITS_BOTTOM;
+	layout.fadeFrom = CREDITS_FADE_FROM;
+	layout.fadeTo = CREDITS_FADE_TO;
+	layout.lastY = CREDITS_LAST_Y;
+	layout.speed = CREDITS_SPEED;
+	credits.render(projection, time - CREDITS_START, layout);
 }
 
 void SecretScene::render(int windowWidth, int windowHeight)

@@ -15,7 +15,7 @@ build-win/Hud.o: Hud.cpp Hud.h Texture.h Sprite.h ShaderProgram.h \
  C:/msys64/ucrt64/include/freetype2/freetype/fterrors.h \
  C:/msys64/ucrt64/include/freetype2/freetype/ftmoderr.h \
  C:/msys64/ucrt64/include/freetype2/freetype/fterrdef.h TexturedQuad.h \
- Game.h Scene.h
+ Game.h Scene.h DitherFade.h
 Hud.h:
 Texture.h:
 Sprite.h:
@@ -41,3 +41,4 @@ C:/msys64/ucrt64/include/freetype2/freetype/fterrdef.h:
 TexturedQuad.h:
 Game.h:
 Scene.h:
+DitherFade.h:

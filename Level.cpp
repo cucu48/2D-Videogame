@@ -22,6 +22,11 @@
 #define SECRET_MUSIC_TIME 3000 // ms en que empieza a sonar MUSIC_SECRET
 #define FINAL_BONG_TILE_X 7.5f // el quinto bong cae en el centro de la plataforma del jefe
 #define FINAL_BONG_TILE_Y 5
+#define STAGE_CARD_TIME 1500 // ms del cartel "STAGE 1-N" al empezar un stage
+#define HURRY_TIME 30000    // ms: con menos tiempo la musica se acelera
+#define POWERUP_FLASH_TIME 450
+#define LEAF_BITS 7         // trocitos de hoja por arbusto
+#define LEAF_LIFE 700       // ms
 #define CLEAR_TIME 5500     // ms showing "WORLD CLEAR!!" before the next level (lo que dura music_clear)
 #define GAME_OVER_TIME 3000 // ms showing "GAME OVER" before going back to the menu
 #define BUBBLE_SPEED 1.5f
@@ -45,6 +50,8 @@ Level::Level(int number)
 	clearSprite = NULL;
 	gameOverSprite = NULL;
 	bongSprite = NULL;
+	for(int i = 0; i < 4; i++)
+		leafQuads[i] = NULL;
 }
 
 Level::~Level()
@@ -56,6 +63,12 @@ Level::~Level()
 		delete gameOverSprite;
 	if(bongSprite != NULL)
 		delete bongSprite;
+	for(int i = 0; i < 4; i++)
+		if(leafQuads[i] != NULL)
+		{
+			leafQuads[i]->free();
+			delete leafQuads[i];
+		}
 }
 
 // Frees everything created by loadLevel
@@ -123,8 +136,18 @@ void Level::init()
 	vsScreen.init(texProgram);
 	fade.init(texProgram, VIEW_W, VIEW_H + HUD_HEIGHT);
 	pauseMenu.init();
+	instructions.init();
+	leafTex.loadFromFile("images/leaf_bits.png", TEXTURE_PIXEL_FORMAT_RGBA);
+	leafTex.setMinFilter(GL_NEAREST);
+	leafTex.setMagFilter(GL_NEAREST);
+	for(int i = 0; i < 4; i++)
+	{
+		glm::vec2 geom[2] = { glm::vec2(0.f), glm::vec2(8.f) };
+		glm::vec2 texCoords[2] = { glm::vec2(i / 4.f, 0.f), glm::vec2((i + 1) / 4.f, 1.f) };
+		leafQuads[i] = TexturedQuad::createTexturedQuad(geom, texCoords, texProgram);
+	}
 	bPaused = false;
-	bPauseOptions = false;
+	pauseScreen = PAUSE_MAIN;
 
 	// Coleccionable: images/bong.png, 2 frames de 16x16 (el segundo con brillo) a x2
 	bongTex.loadFromFile("images/bong.png", TEXTURE_PIXEL_FORMAT_RGBA);
@@ -196,12 +219,18 @@ void Level::loadLevel()
 	remoteEnabled = carried.remote;
 	freezeTime = 0;
 	bBossLevel = (boss != NULL);
+	powerUpFlash = 0;
+	leafBits.clear();
+	hud.reset();
+	Audio::instance().setMusicHurry(false);
 	Audio::instance().playMusic(levelMusic(), true);
 	if(bBossLevel)
 	{
 		state = LEVEL_INTRO;
 		vsScreen.start();
 	}
+	else
+		state = LEVEL_STAGE_CARD;   // "STAGE 1-N" antes de empezar
 }
 
 std::string Level::levelMusic() const
@@ -225,10 +254,21 @@ void Level::update(int deltaTime)
 			state = LEVEL_PLAYING;
 		return;
 	}
+	if(state == LEVEL_STAGE_CARD)
+	{
+		stateTime += deltaTime;
+		if(stateTime >= STAGE_CARD_TIME)
+		{
+			state = LEVEL_PLAYING;
+			stateTime = 0;
+		}
+		return;
+	}
 
 	// Fin del nivel: solo se espera a que pase el cartel
 	if(state != LEVEL_PLAYING)
 	{
+		Audio::instance().setMusicHurry(false);
 		stateTime += deltaTime;
 		if(state == LEVEL_CLEARED && stateTime >= CLEAR_TIME)
 			finishLevel();
@@ -300,6 +340,12 @@ void Level::update(int deltaTime)
 	updatePickups();
 	updateBong(deltaTime);
 	updateFinalBong(deltaTime);
+	updateLeafBits(deltaTime);
+	if(powerUpFlash > 0)
+		powerUpFlash -= deltaTime;
+	hud.update(deltaTime, hudState());
+	// poco tiempo: la musica se acelera (no con la de morir ni la del baile)
+	Audio::instance().setMusicHurry(timeLeft <= HURRY_TIME && !player->isDead() && !player->isDancing());
 	if(state != LEVEL_PLAYING)
 		return;
 
@@ -579,7 +625,7 @@ void Level::finishLevel()
 	if(number < NUM_LEVELS)
 		Game::instance().startLevel(number + 1);
 	else
-		Game::instance().changeScene(SCENE_MENU);
+		Game::instance().changeScene(SCENE_CREDITS);   // juego acabado (sin el final secreto)
 }
 
 // Camara con zona muerta: el jugador se mueve libremente dentro de un
@@ -726,15 +772,16 @@ void Level::keyPressed(int key)
 		if(key == GLFW_KEY_ESCAPE)
 		{
 			Audio::instance().playSound(SFX_SELECT);
-			if(bPauseOptions)
-				showPauseScreen(false);
+			if(pauseScreen != PAUSE_MAIN)
+				showPauseScreen(PAUSE_MAIN);
 			else
 				closePause();
 			return;
 		}
-		if(bPauseOptions && pauseMenu.getSelected() == 0 && (key == GLFW_KEY_LEFT || key == GLFW_KEY_A))
+		bool onVolume = pauseScreen == PAUSE_OPTIONS && pauseMenu.getSelected() == 0;
+		if(onVolume && (key == GLFW_KEY_LEFT || key == GLFW_KEY_A))
 			changeVolume(-1);
-		else if(bPauseOptions && pauseMenu.getSelected() == 0 && (key == GLFW_KEY_RIGHT || key == GLFW_KEY_D))
+		else if(onVolume && (key == GLFW_KEY_RIGHT || key == GLFW_KEY_D))
 			changeVolume(1);
 		else
 			pauseChoose(pauseMenu.keyPressed(key));
@@ -753,6 +800,16 @@ void Level::keyPressed(int key)
 			vsScreen.skip();
 		return;
 	}
+	// Cartel "STAGE 1-N": espacio o enter lo saltan
+	if(state == LEVEL_STAGE_CARD)
+	{
+		if(key == GLFW_KEY_SPACE || key == GLFW_KEY_ENTER)
+		{
+			state = LEVEL_PLAYING;
+			stateTime = 0;
+		}
+		return;
+	}
 	if(state == LEVEL_SECRET_FADE)
 		return;
 	// D: con el mando a distancia, detona la bomba del jugador mas antigua
@@ -768,8 +825,6 @@ void Level::keyPressed(int key)
 	// E: truco de todos los bongs (lo aplica Game); el de este nivel ya no sale
 	if(key == GLFW_KEY_E)
 		bBongHere = false;
-	if(key == GLFW_KEY_H)
-		player->setHeart(!player->hasHeart());
 	if(key == GLFW_KEY_B)
 		player->toggleDance();
 	// G: modo dios, el jugador no puede morir
@@ -891,6 +946,7 @@ bool Level::isClosedDoorTile(const glm::ivec2 &tile) const
 void Level::destroyBush(const glm::ivec2 &tile)
 {
 	map->setTile(tile.x, tile.y, map->getBlankTile());
+	spawnLeafBits(tile);
 	std::map<int, PowerUpType>::iterator it = itemUnderBush.find(tile.y * map->getMapSize().x + tile.x);
 	if(it == itemUnderBush.end())
 		return;
@@ -912,6 +968,8 @@ void Level::updatePickups()
 		if(pp.x < ip.x + is.x && pp.x + ps.x > ip.x && pp.y < ip.y + is.y && pp.y + ps.y > ip.y)
 		{
 			applyPowerUp(pickups[i]->getType());
+			Audio::instance().playSound(SFX_POWERUP);
+			powerUpFlash = POWERUP_FLASH_TIME;
 			delete pickups[i];
 			pickups.erase(pickups.begin() + i);
 		}
@@ -1122,9 +1180,86 @@ bool Level::overlapsTile(const glm::ivec2 &pos, const glm::ivec2 &size, const gl
 	       pos.y < ty + tileSize && pos.y + size.y > ty;
 }
 
+HudState Level::hudState() const
+{
+	HudState s;
+	s.secondsLeft = (timeLeft + 999) / 1000;
+	s.hasHeart = player->hasHeart();
+	s.lives = Game::instance().getLives();
+	s.enemiesLeft = int(enemies.size()) + (boss != NULL ? 1 : 0);
+	s.maxBombs = maxBombs;
+	s.blastRange = currentBlastRange();
+	return s;
+}
+
+// Cartel al empezar: la partida se ve oscurecida y "STAGE 1-N" en grande
+void Level::renderStageCard()
+{
+	ShaderProgram &program = Game::instance().getTexProgram();
+	fade.render(program, 4);
+	glm::mat4 projection = glm::ortho(0.f, float(VIEW_W), float(VIEW_H + HUD_HEIGHT), 0.f);
+	pauseMenu.renderLabel(projection, "STAGE 1-" + to_string(number), VIEW_W / 2.f, 150.f, 24,
+	                      glm::vec4(1.f, 0.85f, 0.3f, 1.f));
+}
+
+// --- Restos de hoja ---
+
+void Level::spawnLeafBits(const glm::ivec2 &tile)
+{
+	int tileSize = map->getTileSize();
+	glm::vec2 center = glm::vec2(tile * tileSize) + glm::vec2(tileSize / 2.f);
+	for(int i = 0; i < LEAF_BITS; i++)
+	{
+		LeafBit b;
+		float angle = 3.14159f * (0.15f + 0.7f * float(rand() % 100) / 100.f);   // hacia arriba, abiertos
+		float speed = 1.5f + float(rand() % 100) / 50.f;
+		b.vel = glm::vec2(std::cos(angle) * speed, -std::sin(angle) * speed);
+		b.pos = center + glm::vec2(float(rand() % 17 - 8), float(rand() % 17 - 8)) - glm::vec2(4.f);
+		b.life = LEAF_LIFE - rand() % 200;
+		b.frame = rand() % 4;
+		leafBits.push_back(b);
+	}
+}
+
+void Level::updateLeafBits(int deltaTime)
+{
+	for(size_t i = 0; i < leafBits.size(); )
+	{
+		LeafBit &b = leafBits[i];
+		b.vel.y = std::min(b.vel.y + 0.18f, 3.f);   // caen con gravedad...
+		b.vel.x *= 0.96f;                           // ...y frenan de lado, como hojas
+		b.pos += b.vel;
+		b.life -= deltaTime;
+		// van girando (cambian de dibujo) mientras caen
+		if(b.life % 120 < deltaTime)
+			b.frame = (b.frame + 1) % 4;
+		if(b.life <= 0)
+			leafBits.erase(leafBits.begin() + i);
+		else
+			i++;
+	}
+}
+
+void Level::renderLeafBits()
+{
+	ShaderProgram &program = Game::instance().getTexProgram();
+	for(size_t i = 0; i < leafBits.size(); i++)
+	{
+		// los ultimos ms parpadean antes de desaparecer
+		if(leafBits[i].life < 200 && (leafBits[i].life / 50) % 2 == 0)
+			continue;
+		glm::mat4 m = glm::translate(glm::mat4(1.f), glm::vec3(glm::floor(leafBits[i].pos), 0.f));
+		program.setUniformMatrix4f("modelview", m);
+		leafQuads[leafBits[i].frame]->render(leafTex);
+	}
+	glm::mat4 identity(1.f);
+	program.setUniformMatrix4f("modelview", identity);
+}
+
 // --- Pausa ---
 
 #define PAUSE_DARKEN 3          // nivel de la trama (de 8) con que se oscurece la partida
+#define HELP_DARKEN 7           // mas oscuro en las instrucciones, para que se lea el texto
 #define VOLUME_STEP 0.1f
 
 void Level::openPause()
@@ -1132,7 +1267,7 @@ void Level::openPause()
 	bPaused = true;
 	Audio::instance().playSound(SFX_SELECT);
 	Audio::instance().setMusicDucked(true);
-	showPauseScreen(false);
+	showPauseScreen(PAUSE_MAIN);
 }
 
 void Level::closePause()
@@ -1141,25 +1276,37 @@ void Level::closePause()
 	Audio::instance().setMusicDucked(false);
 }
 
-void Level::showPauseScreen(bool options)
+void Level::showPauseScreen(PauseScreen screen)
 {
-	bPauseOptions = options;
+	// al volver de opciones o instrucciones, su boton sigue seleccionado
+	int selected = 0;
+	if(screen == PAUSE_MAIN && pauseScreen == PAUSE_OPTIONS)
+		selected = 1;
+	else if(screen == PAUSE_MAIN && pauseScreen == PAUSE_HELP)
+		selected = 2;
+	pauseScreen = screen;
 	std::vector<std::string> items;
-	if(options)
+	if(screen == PAUSE_OPTIONS)
 	{
 		items.push_back("");   // volumen: el texto lo pone changeVolume
 		items.push_back("TORNAR");
 	}
+	else if(screen == PAUSE_HELP)
+		items.push_back("TORNAR");
 	else
 	{
 		items.push_back("CONTINUAR");
 		items.push_back("OPCIONS");
+		items.push_back("INSTRUCCIONS");
 		items.push_back("MENU PRINCIPAL");
 	}
 	pauseMenu.setItems(items);
-	pauseMenu.setSelected(0);
-	pauseMenu.setLayout(VIEW_W / 2.f, 150.f, 12, 20.f);
-	if(options)
+	pauseMenu.setSelected(selected);
+	if(screen == PAUSE_HELP)
+		pauseMenu.setLayout(VIEW_W / 2.f, VIEW_H + HUD_HEIGHT - 12.f, 12, 20.f);
+	else
+		pauseMenu.setLayout(VIEW_W / 2.f, 150.f, 12, 20.f);
+	if(screen == PAUSE_OPTIONS)
 		changeVolume(0);
 }
 
@@ -1180,16 +1327,23 @@ void Level::pauseChoose(int item)
 	if(item < 0)
 		return;
 	Audio::instance().playSound(SFX_SELECT);
-	if(bPauseOptions)
+	if(pauseScreen == PAUSE_HELP)
+	{
+		showPauseScreen(PAUSE_MAIN);
+		return;
+	}
+	if(pauseScreen == PAUSE_OPTIONS)
 	{
 		if(item == 1)
-			showPauseScreen(false);
+			showPauseScreen(PAUSE_MAIN);
 		return;
 	}
 	if(item == 0)
 		closePause();
 	else if(item == 1)
-		showPauseScreen(true);
+		showPauseScreen(PAUSE_OPTIONS);
+	else if(item == 2)
+		showPauseScreen(PAUSE_HELP);
 	else
 	{
 		player->stopDance();
@@ -1220,7 +1374,7 @@ void Level::mousePress(int button)
 		return;
 	int item = pauseMenu.hover(p);
 	// volumen: a la izquierda del centro baja, a la derecha sube
-	if(bPauseOptions && item == 0)
+	if(pauseScreen == PAUSE_OPTIONS && item == 0)
 		changeVolume(p.x < pauseMenu.itemCenterX() ? -1 : 1);
 	else
 		pauseChoose(item);
@@ -1229,10 +1383,18 @@ void Level::mousePress(int button)
 void Level::renderPause()
 {
 	ShaderProgram &program = Game::instance().getTexProgram();
-	fade.render(program, PAUSE_DARKEN);
 	glm::mat4 projection = glm::ortho(0.f, float(VIEW_W), float(VIEW_H + HUD_HEIGHT), 0.f);
-	pauseMenu.renderLabel(projection, bPauseOptions ? "OPCIONS" : "PAUSA", VIEW_W / 2.f, 116.f, 24,
-	                      glm::vec4(1.f, 1.f, 1.f, 1.f));
+	if(pauseScreen == PAUSE_HELP)
+	{
+		fade.render(program, HELP_DARKEN);
+		instructions.render(projection, VIEW_W / 2.f, 28.f);
+	}
+	else
+	{
+		fade.render(program, PAUSE_DARKEN);
+		pauseMenu.renderLabel(projection, pauseScreen == PAUSE_OPTIONS ? "OPCIONS" : "PAUSA", VIEW_W / 2.f, 116.f, 24,
+		                      glm::vec4(1.f, 1.f, 1.f, 1.f));
+	}
 	pauseMenu.render(projection);
 }
 
@@ -1270,7 +1432,14 @@ void Level::render(int windowWidth, int windowHeight)
 		projectiles[i]->render();
 	for(size_t i = 0; i < explosions.size(); i++)
 		explosions[i]->render();
+	// tras coger un power-up el jugador destella en dorado (el shader multiplica: >1 aclara)
+	bool flash = powerUpFlash > 0 && (powerUpFlash / 60) % 2 == 0;
+	if(flash)
+		texProgram.setUniform4f("color", 2.f, 1.7f, 0.35f, 1.f);
 	player->render();
+	if(flash)
+		texProgram.setUniform4f("color", 1.f, 1.f, 1.f, 1.f);
+	renderLeafBits();
 	renderBong();
 
 	// Cartel de fin de nivel, centrado en la vista
@@ -1284,14 +1453,12 @@ void Level::render(int windowWidth, int windowHeight)
 	}
 
 	glViewport(vp[0], vp[1], vp[2], hudPx);
-	HudState hudState;
-	hudState.secondsLeft = (timeLeft + 999) / 1000;
-	hudState.hasHeart = player->hasHeart();
-	hudState.lives = Game::instance().getLives();
-	hudState.enemiesLeft = int(enemies.size()) + (boss != NULL ? 1 : 0);
-	hudState.maxBombs = maxBombs;
-	hudState.blastRange = currentBlastRange();
-	hud.render(hudState);
+	hud.render(hudState());
+	if(state == LEVEL_STAGE_CARD)
+	{
+		setLetterboxViewport(windowWidth, windowHeight, VIEW_W, VIEW_H + HUD_HEIGHT);
+		renderStageCard();
+	}
 
 	// Pantalla VS encima de todo (nivel y HUD)
 	if(state == LEVEL_INTRO)

@@ -45,6 +45,8 @@ public:
 	float getVolume() const { return volume; }
 	// Musica al 50% (pausa y opciones) para que no moleste
 	void setMusicDucked(bool ducked);
+	// Queda poco tiempo: la musica va mas rapida (y mas aguda)
+	void setMusicHurry(bool hurry);
 
 	void playSound(const std::string &file);
 	// Loads a sound effect into memory now, so the first play has no delay
@@ -69,6 +71,7 @@ private:
 	bool bMusicLoop;
 	float volume;
 	bool bDucked;
+	bool bHurry;
 
 };
 

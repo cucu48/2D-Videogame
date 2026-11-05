@@ -47,6 +47,7 @@ Audio::Audio()
 	bFailed = false;
 	volume = 1.f;
 	bDucked = false;
+	bHurry = false;
 	bMusicLoop = false;
 }
 
@@ -246,10 +247,21 @@ void Audio::setMusicDucked(bool ducked)
 	applyMusicVolume();
 }
 
+void Audio::setMusicHurry(bool hurry)
+{
+	if(hurry == bHurry)
+		return;
+	bHurry = hurry;
+	applyMusicVolume();
+}
+
 void Audio::applyMusicVolume()
 {
 	if(impl != NULL && impl->music != NULL)
+	{
 		ma_sound_set_volume(impl->music, bDucked ? 0.5f : 1.f);
+		ma_sound_set_pitch(impl->music, bHurry ? 1.12f : 1.f);
+	}
 }
 
 // Creates one more voice for a sound effect, fully decoded in memory. The

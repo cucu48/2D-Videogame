@@ -51,6 +51,7 @@ void MenuScene::init()
 void MenuScene::onEnter()
 {
 	Audio::instance().setMusicDucked(false);
+	Audio::instance().setMusicHurry(false);
 	Audio::instance().playMusic(MUSIC_TITLE, true);
 	// With a game left from the pause menu, it can be continued
 	bContinue = Game::instance().hasSuspendedGame();
@@ -58,6 +59,8 @@ void MenuScene::onEnter()
 	if(bContinue)
 		items.push_back("CONTINUAR");
 	items.push_back(bContinue ? "NOVA PARTIDA" : "JUGAR");
+	items.push_back("INSTRUCCIONS");
+	items.push_back("CREDITS");
 	items.push_back("SORTIR");
 	buttons.setItems(items);
 	buttons.setSelected(0);
@@ -95,7 +98,16 @@ void MenuScene::choose(int item)
 	if(item == 0)
 		Game::instance().resumeSuspendedGame();
 	else if(item == 1)
+	{
+		// "Nova partida" (habia una partida en pausa): se empieza sin bongs
+		if(bContinue)
+			Game::instance().resetBongs();
 		Game::instance().changeScene(SCENE_LEVEL_SELECT);
+	}
+	else if(item == 2)
+		Game::instance().changeScene(SCENE_INSTRUCTIONS);
+	else if(item == 3)
+		Game::instance().changeScene(SCENE_CREDITS);
 	else
 		Game::instance().quit();
 }

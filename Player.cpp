@@ -22,6 +22,8 @@
 #define DANCE_MUSIC "sounds/default_dance.mp3"
 #define JUMP_COOLDOWN 450  // ms minimos entre el inicio de un salto y el siguiente (un salto
                            // completo dura ~780 ms; solo se nota si un techo lo corta)
+#define COYOTE_TIME 100    // ms de margen para saltar al salir de una plataforma
+#define JUMP_BUFFER 150    // ms que se recuerda una pulsacion de saltar hecha en el aire
 #define CORNER_TOLERANCE 8 // px que se puede empujar al jugador para colarse por un hueco
 
 
@@ -69,12 +71,16 @@ void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
 	bHeart = false;
 	bWings = false;
 	upWasPressed = false;
+	leftWasPressed = rightWasPressed = false;
+	lastDir = 1;
 	curJumpHeight = JUMP_HEIGHT;
 	speedMul = 1.f;
 	bDancing = false;
 	moveAccum = 0.f;
 	invulnerableTime = 0;
 	jumpCooldown = 0;
+	coyoteTime = 0;
+	jumpBuffer = 0;
 	spritesheet.loadFromFile("images/player.png", TEXTURE_PIXEL_FORMAT_RGBA);
 	sprite = Sprite::createSprite(glm::ivec2(32, 32), glm::vec2(0.25, 0.25), &spritesheet, &shaderProgram);
 	sprite->setNumberAnimations(9);
@@ -145,6 +151,10 @@ void Player::update(int deltaTime)
         invulnerableTime -= deltaTime;
     if(jumpCooldown > 0)
         jumpCooldown -= deltaTime;
+    if(coyoteTime > 0)
+        coyoteTime -= deltaTime;
+    if(jumpBuffer > 0)
+        jumpBuffer -= deltaTime;
 
     // muerto: solo se reproduce la animacion de muerte, sin control ni gravedad
     if(bDead)
@@ -171,7 +181,23 @@ void Player::update(int deltaTime)
     moveAccum -= speed;
     
     // --- MOVIMIENTO HORIZONTAL ---
-    if(Game::instance().getKey(GLFW_KEY_LEFT))
+    // con las dos flechas pulsadas manda la ultima (en el suelo y en el aire)
+    bool leftNow = Game::instance().getKey(GLFW_KEY_LEFT);
+    bool rightNow = Game::instance().getKey(GLFW_KEY_RIGHT);
+    if(leftNow && !leftWasPressed)
+        lastDir = -1;
+    if(rightNow && !rightWasPressed)
+        lastDir = 1;
+    leftWasPressed = leftNow;
+    rightWasPressed = rightNow;
+    int dir = 0;
+    if(leftNow && rightNow)
+        dir = lastDir;
+    else if(leftNow)
+        dir = -1;
+    else if(rightNow)
+        dir = 1;
+    if(dir < 0)
     {
         lookingRight = false;
         if(!bInAir && sprite->animation() != MOVE_LEFT)
@@ -184,7 +210,7 @@ void Player::update(int deltaTime)
                 sprite->changeAnimation(STAND_LEFT);
         }
     }
-    else if(Game::instance().getKey(GLFW_KEY_RIGHT))
+    else if(dir > 0)
     {
         lookingRight = true;
         if(!bInAir && sprite->animation() != MOVE_RIGHT)
@@ -207,6 +233,14 @@ void Player::update(int deltaTime)
     
     // --- ALAS: en el aire, cada nueva pulsacion de UP da un aleteo ---
     bool upNow = Game::instance().getKey(GLFW_KEY_UP);
+    if(upNow && !upWasPressed)
+        jumpBuffer = JUMP_BUFFER;
+    // recien salido de una plataforma andando: aun cuenta como saltar desde el suelo
+    if(upNow && !bJumping && !bOnGround && coyoteTime > 0 && jumpCooldown <= 0)
+    {
+        startJump();
+        upWasPressed = upNow;
+    }
     if(bWings && upNow && !upWasPressed && !bOnGround)
     {
         bJumping = true;
@@ -255,19 +289,11 @@ void Player::update(int deltaTime)
         if(bOnGround)
         {
             bJumping = false;
+            coyoteTime = COYOTE_TIME;
             // con un techo justo encima el salto se corta enseguida: el cooldown
-            // evita poder spamearlo
-            if(Game::instance().getKey(GLFW_KEY_UP) && jumpCooldown <= 0)
-            {
-                jumpCooldown = JUMP_COOLDOWN;
-                bJumping = true;
-                Audio::instance().playSound(SFX_JUMP);
-                curJumpHeight = JUMP_HEIGHT;
-                bRising = true;
-                bOnGround = false;
-                jumpAngle = 0;
-                startY = posPlayer.y;
-            }
+            // evita poder spamearlo. Tambien vale si UP se pulso justo antes de aterrizar.
+            if((Game::instance().getKey(GLFW_KEY_UP) || jumpBuffer > 0) && jumpCooldown <= 0)
+                startJump();
         }
     }
 
@@ -341,6 +367,20 @@ void Player::stopDance()
     // vuelve la musica que sonaba antes del baile, por donde iba
     Audio::instance().popMusic();
     sprite->changeAnimation(lookingRight ? STAND_RIGHT : STAND_LEFT);
+}
+
+void Player::startJump()
+{
+    jumpCooldown = JUMP_COOLDOWN;
+    coyoteTime = 0;
+    jumpBuffer = 0;
+    bJumping = true;
+    Audio::instance().playSound(SFX_JUMP);
+    curJumpHeight = JUMP_HEIGHT;
+    bRising = true;
+    bOnGround = false;
+    jumpAngle = 0;
+    startY = posPlayer.y;
 }
 
 void Player::kill()

@@ -56,6 +56,7 @@ public:
 private:
 	bool nudgeHorizontal();
 	bool nudgeVertical();
+	void startJump();
 	bool lookingRight;
 	bool bJumping;   // desde que despega hasta que vuelve a tocar suelo
 	bool bRising;    // solo la parte de subida del salto
@@ -64,12 +65,16 @@ private:
 	bool bHeart;
 	bool bWings;
 	bool upWasPressed;    // UP key last frame, to detect a new press (flap)
+	bool leftWasPressed, rightWasPressed;   // LEFT/RIGHT last frame
+	int lastDir;          // -1/1: the last of LEFT/RIGHT pressed wins when both are held
 	int curJumpHeight;    // JUMP_HEIGHT on the ground, FLAP_HEIGHT when flapping
 	float speedMul;
 	bool bDancing;
 	float moveAccum;      // parte fraccionaria de MOVE_SPEED pendiente de aplicar
 	int invulnerableTime; // tras reaparecer, un rato sin poder morir (parpadea)
 	int jumpCooldown;     // ms hasta poder volver a saltar (JUMP_COOLDOWN)
+	int coyoteTime;       // ms que aun se puede saltar tras salir andando de una plataforma
+	int jumpBuffer;       // ms que dura una pulsacion de UP hecha justo antes de aterrizar
 	glm::ivec2 tileMapDispl, posPlayer;
 	int jumpAngle, startY;
 	Texture spritesheet;

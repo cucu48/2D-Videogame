@@ -18,6 +18,7 @@
 #include "VsScreen.h"
 #include "DitherFade.h"
 #include "TextMenu.h"
+#include "Instructions.h"
 #include <vector>
 #include <map>
 
@@ -44,6 +45,7 @@ enum LevelState
 {
 	LEVEL_PLAYING,
 	LEVEL_INTRO,     // boss level: "VS" screen before playing (everything stopped)
+	LEVEL_STAGE_CARD, // cartel "STAGE 1-N" al empezar (todo parado)
 	LEVEL_CLEARED,   // the player reached the open door: "WORLD CLEAR!!" and next level
 	LEVEL_GAME_OVER, // no lives left: "GAME OVER" and back to the menu
 	LEVEL_SECRET_FADE // jefe derrotado con los 4 bongs y quinto bong cogido: fundido al final secreto
@@ -101,14 +103,22 @@ private:
 	void updateBong(int deltaTime);
 	void renderBong();
 	void updateFinalBong(int deltaTime);
-	// Pausa (Esc): oscurece la partida y muestra "Continuar / Opcions / Menu principal";
-	// en opciones se cambia el volumen. La musica baja al 50% mientras tanto.
+	// Pausa (Esc): oscurece la partida y muestra "Continuar / Opcions / Instruccions /
+	// Menu principal"; en opciones se cambia el volumen.
+	// La musica baja al 50% mientras tanto.
+	enum PauseScreen { PAUSE_MAIN, PAUSE_OPTIONS, PAUSE_HELP };
 	void openPause();
 	void closePause();
-	void showPauseScreen(bool options);
+	void showPauseScreen(PauseScreen screen);
 	void pauseChoose(int item);
 	void changeVolume(int step);
 	void renderPause();
+	HudState hudState() const;
+	void renderStageCard();
+	// Restos de hoja al romper un arbusto
+	void spawnLeafBits(const glm::ivec2 &tile);
+	void updateLeafBits(int deltaTime);
+	void renderLeafBits();
 	bool pauseMousePos(glm::vec2 &p) const;
 	bool overlapsTile(const glm::ivec2 &pos, const glm::ivec2 &size, const glm::ivec2 &tile) const;
 
@@ -154,8 +164,14 @@ private:
 	float finalBongVel;
 	DitherFade fade;
 	bool bPaused;
-	bool bPauseOptions;             // en la pantalla de opciones
+	PauseScreen pauseScreen;        // pantalla de la pausa que se ve
 	TextMenu pauseMenu;
+	Instructions instructions;
+	int powerUpFlash;               // ms que el jugador brilla tras coger un power-up
+	struct LeafBit { glm::vec2 pos, vel; int life, frame; };
+	vector<LeafBit> leafBits;
+	Texture leafTex;
+	TexturedQuad *leafQuads[4];
 	Texture clearTex, gameOverTex;
 	Sprite *clearSprite, *gameOverSprite;
 	glm::mat4 projection;

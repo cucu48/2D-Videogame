@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 #include "Scene.h"
 #include "ShaderProgram.h"
+#include "DitherFade.h"
 
 
 #define SCREEN_WIDTH 640
@@ -18,6 +19,8 @@
 #define SCENE_FIRST_LEVEL 2
 #define NUM_LEVELS 5
 #define SCENE_SECRET (SCENE_FIRST_LEVEL + NUM_LEVELS)   // final secreto, despues de los niveles
+#define SCENE_INSTRUCTIONS (SCENE_SECRET + 1)
+#define SCENE_CREDITS (SCENE_SECRET + 2)
 #define START_LIVES 3
 #define DEFAULT_MAX_BOMBS 1
 #define DEFAULT_BLAST_RANGE 1
@@ -45,7 +48,7 @@ class Game
 {
 
 private:
-	Game() { currentScene = 0; suspendedScene = -1; mouseX = mouseY = -1; for(int i = 0; i < NUM_BONGS; i++) bongs[i] = false; }
+	Game() { currentScene = 0; suspendedScene = -1; pendingScene = NO_PENDING; fadeTime = 0; bFadingOut = false; mouseX = mouseY = -1; for(int i = 0; i < NUM_BONGS; i++) bongs[i] = false; }
 	~Game();
 	
 public:
@@ -74,8 +77,10 @@ public:
 	int getWindowWidth() const { return windowWidth; }
 	int getWindowHeight() const { return windowHeight; }
 
-	// Scene management
-	void changeScene(int index);
+	// Scene management. Normally the screen fades out (dithered) to black, the
+	// scene changes and it fades in again. immediate skips the fade.
+	void changeScene(int index, bool immediate = false);
+	bool isLevelScene(int index) const { return index >= SCENE_FIRST_LEVEL && index < SCENE_FIRST_LEVEL + NUM_LEVELS; }
 	void quit() { bPlay = false; }
 
 	// "Menu principal" desde la pausa: el nivel se queda tal cual (con sus
@@ -102,6 +107,7 @@ public:
 	// esta abierto, aunque se pierda la partida.
 	bool hasBong(int levelNumber) const { return levelNumber >= 1 && levelNumber <= NUM_BONGS && bongs[levelNumber - 1]; }
 	void collectBong(int levelNumber) { if(levelNumber >= 1 && levelNumber <= NUM_BONGS) bongs[levelNumber - 1] = true; }
+	void resetBongs() { for(int i = 0; i < NUM_BONGS; i++) bongs[i] = false; }
 	int bongCount() const { int n = 0; for(int i = 0; i < NUM_BONGS; i++) n += bongs[i] ? 1 : 0; return n; }
 
 	// Shader shared by all the scenes
@@ -109,6 +115,8 @@ public:
 
 private:
 	void initShaders();
+	void doChangeScene(int index);
+	void doResume();
 
 private:
 	bool bPlay; // Continue to play game?
@@ -125,6 +133,13 @@ private:
 	PowerUpState powerUpState;
 	bool bGodMode;
 	int mouseX, mouseY; // last cursor position, in window pixels
+	// Transicion entre escenas: fundido a negro (la escena se queda quieta y
+	// sin input), cambio, y fundido de vuelta
+	enum { NO_PENDING = -1, PENDING_RESUME = -2 };
+	int pendingScene;
+	int fadeTime;                   // ms en la fase actual del fundido
+	bool bFadingOut;
+	DitherFade transition;
 	ShaderProgram texProgram;
 
 };

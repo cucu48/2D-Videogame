@@ -6,8 +6,15 @@
 #include "LevelSelectScene.h"
 #include "Level.h"
 #include "SecretScene.h"
+#include "InstructionsScene.h"
+#include "CreditsScene.h"
 #include "Audio.h"
 #include "Sounds.h"
+
+
+#define TRANSITION_TIME 200     // ms de cada mitad del fundido entre escenas
+#define TRANSITION_W 320        // la trama se pinta a media resolucion de la ventana
+#define TRANSITION_H 240
 
 
 void Game::init()
@@ -24,6 +31,8 @@ void Game::init()
 	for(int i = 1; i <= NUM_LEVELS; i++)
 		scenes.push_back(new Level(i));
 	scenes.push_back(new SecretScene());   // SCENE_SECRET
+	scenes.push_back(new InstructionsScene());   // SCENE_INSTRUCTIONS
+	scenes.push_back(new CreditsScene());   // SCENE_CREDITS
 	for(size_t i = 0; i < scenes.size(); i++)
 		scenes[i]->init();
 
@@ -31,7 +40,8 @@ void Game::init()
 	for(size_t i = 0; i < sizeof(ALL_SFX) / sizeof(ALL_SFX[0]); i++)
 		Audio::instance().preload(ALL_SFX[i]);
 
-	changeScene(SCENE_MENU);
+	transition.init(texProgram, TRANSITION_W, TRANSITION_H);
+	doChangeScene(SCENE_MENU);   // y aparece con el fundido de entrada
 }
 
 Game::~Game()
@@ -41,14 +51,34 @@ Game::~Game()
 	texProgram.free();
 }
 
-void Game::changeScene(int index)
+void Game::changeScene(int index, bool immediate)
 {
 	if(index < 0 || index >= int(scenes.size()))
 		return;
+	// El final secreto ya llega con su propio fundido desde el nivel
+	if(immediate || index == SCENE_SECRET)
+	{
+		pendingScene = NO_PENDING;
+		bFadingOut = false;
+		fadeTime = TRANSITION_TIME;
+		doChangeScene(index);
+		return;
+	}
+	if(pendingScene != NO_PENDING)
+		return;   // ya hay un cambio en marcha: manda el primero
+	pendingScene = index;
+	// si aun estaba apareciendo la escena, el fundido sigue desde la trama de ahora
+	fadeTime = (!bFadingOut && fadeTime < TRANSITION_TIME) ? TRANSITION_TIME - fadeTime : 0;
+	bFadingOut = true;
+}
+
+void Game::doChangeScene(int index)
+{
 	currentScene = index;
-	if(index >= SCENE_FIRST_LEVEL)
+	if(isLevelScene(index))
 		suspendedScene = -1;   // otra partida: la que estaba en pausa se pierde
-	if(index < SCENE_FIRST_LEVEL)
+	// Fuera de los niveles (y del final secreto) la proxima partida empieza de cero
+	if(!isLevelScene(index) && index != SCENE_SECRET)
 	{
 		lives = START_LIVES;
 		powerUpState = PowerUpState();
@@ -68,6 +98,15 @@ void Game::suspendToMenu()
 
 void Game::resumeSuspendedGame()
 {
+	if(suspendedScene < 0 || pendingScene != NO_PENDING)
+		return;
+	pendingScene = PENDING_RESUME;
+	fadeTime = (!bFadingOut && fadeTime < TRANSITION_TIME) ? TRANSITION_TIME - fadeTime : 0;
+	bFadingOut = true;
+}
+
+void Game::doResume()
+{
 	if(suspendedScene < 0)
 		return;
 	currentScene = suspendedScene;
@@ -86,6 +125,25 @@ void Game::startLevel(int levelNumber)
 
 bool Game::update(int deltaTime)
 {
+	// Fundido de salida: la escena se queda quieta hasta que todo esta negro
+	if(bFadingOut)
+	{
+		fadeTime += deltaTime;
+		if(fadeTime >= TRANSITION_TIME)
+		{
+			int target = pendingScene;
+			pendingScene = NO_PENDING;
+			bFadingOut = false;
+			fadeTime = 0;
+			if(target == PENDING_RESUME)
+				doResume();
+			else
+				doChangeScene(target);
+		}
+		return bPlay;
+	}
+	if(fadeTime < TRANSITION_TIME)
+		fadeTime += deltaTime;
 	scenes[currentScene]->update(deltaTime);
 
 	return bPlay;
@@ -96,6 +154,18 @@ void Game::render()
 	glViewport(0, 0, windowWidth, windowHeight); // toda la ventana
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // pinta las bandas de negro
 	scenes[currentScene]->render(windowWidth, windowHeight);
+
+	// Trama del fundido entre escenas, encima de toda la ventana
+	int level = 0;
+	if(bFadingOut)
+		level = fadeTime * (FADE_LEVELS + 1) / TRANSITION_TIME;
+	else if(fadeTime < TRANSITION_TIME)
+		level = FADE_LEVELS - fadeTime * (FADE_LEVELS + 1) / TRANSITION_TIME;
+	if(level > 0)
+	{
+		glViewport(0, 0, windowWidth, windowHeight);
+		transition.render(texProgram, level);
+	}
 }
 
 void Game::resize(int width, int height)
@@ -110,6 +180,8 @@ void Game::keyPressed(int key)
 		return;
 	// Esc ya no sale del juego: en los niveles pausa (para salir, "Sortir" en el menu)
 	keys[key] = true;
+	if(bFadingOut)
+		return;   // cambiando de escena: no se hace caso a las teclas
 
 	// Number keys go straight to the matching level from any scene
 	int levelNumber = 0;
@@ -151,6 +223,8 @@ void Game::mouseMove(int x, int y)
 
 void Game::mousePress(int button)
 {
+	if(bFadingOut)
+		return;
 	scenes[currentScene]->mousePress(button);
 }
 

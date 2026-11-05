@@ -16,7 +16,8 @@ build-win/Level.o: Level.cpp Level.h ShaderProgram.h Shader.h Scene.h \
  C:/msys64/ucrt64/include/freetype2/freetype/fterrors.h \
  C:/msys64/ucrt64/include/freetype2/freetype/ftmoderr.h \
  C:/msys64/ucrt64/include/freetype2/freetype/fterrdef.h TexturedQuad.h \
- VsScreen.h DitherFade.h Game.h Audio.h Sounds.h
+ VsScreen.h DitherFade.h TextMenu.h Instructions.h Game.h Audio.h \
+ Sounds.h
 Level.h:
 ShaderProgram.h:
 Shader.h:
@@ -53,6 +54,8 @@ C:/msys64/ucrt64/include/freetype2/freetype/fterrdef.h:
 TexturedQuad.h:
 VsScreen.h:
 DitherFade.h:
+TextMenu.h:
+Instructions.h:
 Game.h:
 Audio.h:
 Sounds.h:
