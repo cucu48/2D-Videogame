@@ -14,3 +14,5 @@ item 6 1 bombup
 item 20 3 wings
 item 30 7 remote
 item 4 8 timer
+# bong col row: el coleccionable escondido (dentro de la caja del centro: se entra volando el arbusto de abajo o levantando la cascada)
+bong 16 9

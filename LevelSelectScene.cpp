@@ -17,6 +17,12 @@ static const glm::vec2 buttonPos[NUM_LEVELS] = {
 };
 
 
+// Coleccionable de cada stage 1-4, al lado de su boton (en sombra si aun no se ha cogido)
+static const glm::vec2 bongPos[NUM_BONGS] = {
+	glm::vec2(110, 24), glm::vec2(34, 40), glm::vec2(110, 64), glm::vec2(34, 88)
+};
+
+
 static void loadTexture(Texture &tex, const char *file)
 {
 	tex.loadFromFile(file, TEXTURE_PIXEL_FORMAT_RGBA);
@@ -27,7 +33,7 @@ static void loadTexture(Texture &tex, const char *file)
 
 LevelSelectScene::LevelSelectScene()
 {
-	background = indicator = digit = NULL;
+	background = indicator = digit = bong = NULL;
 	hovered = -1;
 }
 
@@ -36,6 +42,7 @@ LevelSelectScene::~LevelSelectScene()
 	delete background;
 	delete indicator;
 	delete digit;
+	delete bong;
 }
 
 void LevelSelectScene::init()
@@ -45,6 +52,8 @@ void LevelSelectScene::init()
 	loadTexture(backgroundTex, "images/LevelSelector.png");
 	loadTexture(indicatorTex, "images/SelectedLevelIndicator.png");
 	loadTexture(numbersTex, "images/NumbersOutlined.png");
+	loadTexture(bongTex, "images/bong.png");
+	bong = Sprite::createSprite(glm::vec2(16.f, 16.f), glm::vec2(0.5f, 1.f), &bongTex, &program);
 
 	background = Sprite::createSprite(glm::vec2(VIRTUAL_WIDTH, VIRTUAL_HEIGHT), glm::vec2(1.f, 1.f), &backgroundTex, &program);
 	indicator = Sprite::createSprite(glm::vec2(BUTTON_SIZE, BUTTON_SIZE), glm::vec2(1.f, 1.f), &indicatorTex, &program);
@@ -82,6 +91,17 @@ void LevelSelectScene::render(int windowWidth, int windowHeight)
 	program.setUniform4f("color", 1.0f, 1.0f, 1.0f, 1.0f);
 
 	background->render();
+
+	for(int i = 0; i < NUM_BONGS; i++)
+	{
+		if(Game::instance().hasBong(i + 1))
+			program.setUniform4f("color", 1.f, 1.f, 1.f, 1.f);
+		else
+			program.setUniform4f("color", 0.2f, 0.1f, 0.15f, 1.f);
+		bong->setPosition(bongPos[i]);
+		bong->render();
+	}
+	program.setUniform4f("color", 1.f, 1.f, 1.f, 1.f);
 
 	// Highlight frame over the hovered button, with its number on top
 	if(hovered >= 0)

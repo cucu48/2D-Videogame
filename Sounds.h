@@ -16,6 +16,7 @@
 #define MUSIC_CLEAR      "sounds/music_clear"      // "WORLD CLEAR!!" (una vez)
 #define MUSIC_GAME_OVER  "sounds/music_game_over"  // "GAME OVER" (una vez)
 #define MUSIC_DEATH      "sounds/music_death"      // el jugador muere (una vez)
+#define MUSIC_SECRET     "sounds/music_secret"     // final secreto (en bucle, empieza en el segundo 9 del tema)
 
 // Efectos
 #define SFX_SELECT       "sounds/sfx_select"       // elegir en el menu / selector
@@ -27,10 +28,11 @@
 #define SFX_BOSS_HIT     "sounds/sfx_boss_hit"
 #define SFX_DOOR_OPEN    "sounds/sfx_door_open"    // ya no quedan enemigos
 #define SFX_WATERFALL    "sounds/sfx_waterfall"    // la cascada se levanta
+#define SFX_COLLECT      "sounds/sfx_collect"      // coger un coleccionable (bong)
 
 // Todos los efectos, para cargarlos en memoria al arrancar (Game::init)
 static const char *const ALL_SFX[] = { SFX_SELECT, SFX_JUMP, SFX_BOMB_PLACE, SFX_EXPLOSION,
-	SFX_ENEMY_DIE, SFX_HURT, SFX_BOSS_HIT, SFX_DOOR_OPEN, SFX_WATERFALL };
+	SFX_ENEMY_DIE, SFX_HURT, SFX_BOSS_HIT, SFX_DOOR_OPEN, SFX_WATERFALL, SFX_COLLECT };
 
 
 #endif // _SOUNDS_INCLUDE

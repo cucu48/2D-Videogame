@@ -16,6 +16,7 @@
 #include "Door.h"
 #include "Hud.h"
 #include "VsScreen.h"
+#include "DitherFade.h"
 #include <vector>
 #include <map>
 
@@ -43,7 +44,8 @@ enum LevelState
 	LEVEL_PLAYING,
 	LEVEL_INTRO,     // boss level: "VS" screen before playing (everything stopped)
 	LEVEL_CLEARED,   // the player reached the open door: "WORLD CLEAR!!" and next level
-	LEVEL_GAME_OVER  // no lives left: "GAME OVER" and back to the menu
+	LEVEL_GAME_OVER, // no lives left: "GAME OVER" and back to the menu
+	LEVEL_SECRET_FADE // jefe derrotado con los 4 bongs y quinto bong cogido: fundido al final secreto
 };
 
 
@@ -91,6 +93,9 @@ private:
 	void explodeBomb(int index);
 	bool addExplosion(const glm::ivec2 &tile, ExplosionPiece piece, bool fromEnemy); // false if a wall stops it
 	int findBomb(const glm::ivec2 &tile) const; // index in bombs, or -1
+	void updateBong(int deltaTime);
+	void renderBong();
+	void updateFinalBong(int deltaTime);
 	bool overlapsTile(const glm::ivec2 &pos, const glm::ivec2 &size, const glm::ivec2 &tile) const;
 
 private:
@@ -122,6 +127,17 @@ private:
 	int stateTime;                  // ms since the current state started
 	bool bBossLevel;
 	int initialEnemies;             // without a door, the level is cleared once they are all gone
+	// Coleccionable (bong) escondido en el nivel: "bong col row" en el fichero de entidades
+	Texture bongTex;
+	Sprite *bongSprite;
+	glm::ivec2 bongTile;
+	bool bBongHere;                 // esta en el mapa y aun no se ha cogido
+	int bongPopupTime;              // ms que quedan del aviso "N de 4" sobre el jugador
+	// Quinto bong: cae en el centro del mapa del jefe si se le derrota con los 4
+	bool bFinalBong;
+	glm::vec2 finalBongPos;
+	float finalBongVel;
+	DitherFade fade;
 	Texture clearTex, gameOverTex;
 	Sprite *clearSprite, *gameOverSprite;
 	glm::mat4 projection;

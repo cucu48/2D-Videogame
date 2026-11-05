@@ -17,6 +17,11 @@
 #define RESPAWN_TIME 2000
 #define VIEW_W 320
 #define VIEW_H 288
+#define SECRET_FADE_TIME 4000  // ms desde que se coge el quinto bong hasta el final secreto
+#define SECRET_DARK_TIME 3000  // ms del fundido a negro (luego se queda en negro)
+#define SECRET_MUSIC_TIME 3000 // ms en que empieza a sonar MUSIC_SECRET
+#define FINAL_BONG_TILE_X 7.5f // el quinto bong cae en el centro de la plataforma del jefe
+#define FINAL_BONG_TILE_Y 5
 #define CLEAR_TIME 5500     // ms showing "WORLD CLEAR!!" before the next level (lo que dura music_clear)
 #define GAME_OVER_TIME 3000 // ms showing "GAME OVER" before going back to the menu
 #define BUBBLE_SPEED 1.5f
@@ -39,6 +44,7 @@ Level::Level(int number)
 	door = NULL;
 	clearSprite = NULL;
 	gameOverSprite = NULL;
+	bongSprite = NULL;
 }
 
 Level::~Level()
@@ -48,6 +54,8 @@ Level::~Level()
 		delete clearSprite;
 	if(gameOverSprite != NULL)
 		delete gameOverSprite;
+	if(bongSprite != NULL)
+		delete bongSprite;
 }
 
 // Frees everything created by loadLevel
@@ -113,6 +121,20 @@ void Level::init()
 	gameOverTex.setMagFilter(GL_NEAREST);
 	gameOverSprite = Sprite::createSprite(glm::vec2(gameOverTex.width() * 2, gameOverTex.height() * 2), glm::vec2(1.f, 1.f), &gameOverTex, &texProgram);
 	vsScreen.init(texProgram);
+	fade.init(texProgram, VIEW_W, VIEW_H + HUD_HEIGHT);
+
+	// Coleccionable: images/bong.png, 2 frames de 16x16 (el segundo con brillo) a x2
+	bongTex.loadFromFile("images/bong.png", TEXTURE_PIXEL_FORMAT_RGBA);
+	bongTex.setMinFilter(GL_NEAREST);
+	bongTex.setMagFilter(GL_NEAREST);
+	bongSprite = Sprite::createSprite(glm::vec2(32.f, 32.f), glm::vec2(0.5f, 1.f), &bongTex, &texProgram);
+	bongSprite->setNumberAnimations(1);
+	bongSprite->setAnimationSpeed(0, 2);
+	bongSprite->addKeyframe(0, glm::vec2(0.f, 0.f));
+	bongSprite->addKeyframe(0, glm::vec2(0.f, 0.f));
+	bongSprite->addKeyframe(0, glm::vec2(0.f, 0.f));
+	bongSprite->addKeyframe(0, glm::vec2(0.5f, 0.f));
+	bongSprite->changeAnimation(0);
 
 	loadLevel();
 }
@@ -140,6 +162,9 @@ void Level::loadLevel()
 	player->setWings(carried.wings);
 	player->setHeart(carried.heart);
 	waterfalls.clear();
+	bBongHere = false;
+	bongPopupTime = 0;
+	bFinalBong = false;
 	loadEntities(stage + "_entities.txt");
 	initialEnemies = int(enemies.size()) + (boss != NULL ? 1 : 0);
 	state = LEVEL_PLAYING;
@@ -190,6 +215,13 @@ void Level::update(int deltaTime)
 			finishLevel();
 		else if(state == LEVEL_GAME_OVER && stateTime >= GAME_OVER_TIME)
 			Game::instance().changeScene(SCENE_MENU);
+		else if(state == LEVEL_SECRET_FADE)
+		{
+			if(stateTime >= SECRET_MUSIC_TIME && stateTime - deltaTime < SECRET_MUSIC_TIME)
+				Audio::instance().playMusic(MUSIC_SECRET, true);
+			if(stateTime >= SECRET_FADE_TIME)
+				Game::instance().changeScene(SCENE_SECRET);
+		}
 		return;
 	}
 
@@ -247,6 +279,10 @@ void Level::update(int deltaTime)
 	updateBoss(deltaTime, frozen);
 	updateProjectiles(deltaTime, frozen);
 	updatePickups();
+	updateBong(deltaTime);
+	updateFinalBong(deltaTime);
+	if(state != LEVEL_PLAYING)
+		return;
 
 	// Damage to player
 	if(!player->isDead() && !player->isInvulnerable() && isOnFire(player->hitboxPos(), player->hitboxSize()))
@@ -292,6 +328,17 @@ void Level::update(int deltaTime)
 	}
 
 	// Ganar: con todos los enemigos eliminados, llegar a la puerta
+	// Jefe derrotado con los 4 bongs: en vez de acabar, cae el quinto en el centro
+	else if(bBossLevel && Game::instance().bongCount() == NUM_BONGS && isDoorOpen())
+	{
+		if(!bFinalBong)
+		{
+			bFinalBong = true;
+			finalBongPos = glm::vec2(FINAL_BONG_TILE_X * map->getTileSize() - 16.f, camera.y - 40.f);
+			finalBongVel = 0.f;
+			Audio::instance().playSound(SFX_DOOR_OPEN);
+		}
+	}
 	else if(isDoorOpen() && (door != NULL ? playerAtDoor() : initialEnemies > 0))
 	{
 		player->stopDance();
@@ -628,6 +675,11 @@ void Level::loadEntities(const string &entitiesFile)
 			w.bRaising = false;
 			waterfalls.push_back(w);
 		}
+		else if(kind == "bong")
+		{
+			bongTile = glm::ivec2(col, row);
+			bBongHere = !Game::instance().hasBong(number); // si ya se cogio, no vuelve a salir
+		}
 		else if(kind == "item")
 		{
 			string name;
@@ -656,6 +708,8 @@ void Level::keyPressed(int key)
 			vsScreen.skip();
 		return;
 	}
+	if(state == LEVEL_SECRET_FADE)
+		return;
 	// D: con el mando a distancia, detona la bomba del jugador mas antigua
 	if(key == GLFW_KEY_D && remoteEnabled && state == LEVEL_PLAYING && !player->isDead())
 	{
@@ -666,6 +720,9 @@ void Level::keyPressed(int key)
 				break;
 			}
 	}
+	// E: truco de todos los bongs (lo aplica Game); el de este nivel ya no sale
+	if(key == GLFW_KEY_E)
+		bBongHere = false;
 	if(key == GLFW_KEY_H)
 		player->setHeart(!player->hasHeart());
 	if(key == GLFW_KEY_B)
@@ -818,6 +875,100 @@ void Level::updatePickups()
 	}
 }
 
+// Coleccionable: se coge al tocarlo y sale un aviso con los que llevas
+#define BONG_POPUP_TIME 2000
+
+void Level::updateBong(int deltaTime)
+{
+	if(bongPopupTime > 0)
+		bongPopupTime -= deltaTime;
+	if(!bBongHere || player->isDead())
+		return;
+	if(overlapsTile(player->hitboxPos(), player->hitboxSize(), bongTile))
+	{
+		bBongHere = false;
+		Game::instance().collectBong(number);
+		bongPopupTime = BONG_POPUP_TIME;
+		Audio::instance().playSound(SFX_COLLECT);
+	}
+}
+
+// Quinto bong: cae con gravedad, rebota un poco y al cogerlo se funde a negro
+void Level::updateFinalBong(int deltaTime)
+{
+	if(!bFinalBong)
+		return;
+	float groundY = float(FINAL_BONG_TILE_Y * map->getTileSize());
+	finalBongVel += 0.0008f * deltaTime;   // px/ms^2
+	finalBongPos.y += finalBongVel * deltaTime;
+	if(finalBongPos.y >= groundY)
+	{
+		finalBongPos.y = groundY;
+		finalBongVel = (finalBongVel > 0.15f) ? -finalBongVel * 0.35f : 0.f;
+	}
+	if(player->isDead())
+		return;
+	glm::ivec2 pp = player->hitboxPos(), ps = player->hitboxSize();
+	glm::vec2 bp = finalBongPos + glm::vec2(6.f, 2.f), bs(20.f, 30.f);
+	if(pp.x < bp.x + bs.x && pp.x + ps.x > bp.x && pp.y < bp.y + bs.y && pp.y + ps.y > bp.y)
+	{
+		bFinalBong = false;
+		player->stopDance();
+		state = LEVEL_SECRET_FADE;
+		stateTime = 0;
+		Audio::instance().playSound(SFX_COLLECT);
+		Audio::instance().stopMusic();   // silencio hasta SECRET_MUSIC_TIME
+	}
+}
+
+void Level::renderBong()
+{
+	ShaderProgram &program = Game::instance().getTexProgram();
+	int tileSize = map->getTileSize();
+	if(bBongHere)
+	{
+		bongSprite->update(16);
+		// flota arriba y abajo
+		float bob = std::floor(2.f * std::sin(currentTime * 0.004f));
+		bongSprite->setPosition(glm::vec2(bongTile * tileSize) + glm::vec2(0.f, bob));
+		bongSprite->render();
+	}
+	if(bFinalBong)
+	{
+		// brilla (el shader multiplica el color: >1 lo aclara)
+		float glow = 1.5f + 0.5f * std::sin(currentTime * 0.012f);
+		program.setUniform4f("color", glow, glow, glow * 0.7f, 1.f);
+		bongSprite->setPosition(glm::floor(finalBongPos));
+		bongSprite->render();
+		program.setUniform4f("color", 1.f, 1.f, 1.f, 1.f);
+	}
+	if(bongPopupTime > 0)
+	{
+		// los 4 bongs encima del jugador: los cogidos en color, los que faltan en sombra
+		float t = 1.f - float(bongPopupTime) / BONG_POPUP_TIME;
+		float rise = std::min(1.f, t * 6.f) * 16.f;
+		glm::vec2 center = glm::vec2(player->hitboxPos()) + glm::vec2(player->hitboxSize().x / 2.f, 0.f);
+		float width = NUM_BONGS * 32.f + (NUM_BONGS - 1) * 2.f;
+		glm::vec2 pos = glm::floor(glm::vec2(center.x - width / 2.f, center.y - 40.f - rise));
+		pos.x = std::max(camera.x + 2.f, std::min(pos.x, camera.x + VIEW_W - width - 2.f));
+		pos.y = std::max(camera.y + 2.f, pos.y);
+		for(int i = 0; i < NUM_BONGS; i++)
+		{
+			bool got = Game::instance().hasBong(i + 1);
+			// el que se acaba de coger parpadea
+			if(i + 1 == number && (bongPopupTime / 120) % 2 == 0 && t < 0.5f)
+				program.setUniform4f("color", 2.f, 2.f, 2.f, 1.f);
+			else if(got)
+				program.setUniform4f("color", 1.f, 1.f, 1.f, 1.f);
+			else
+				program.setUniform4f("color", 0.15f, 0.15f, 0.2f, 1.f);
+			bongSprite->setPosition(pos + glm::vec2(i * 34.f, 0.f));
+			bongSprite->render();
+		}
+		program.setUniform4f("color", 1.f, 1.f, 1.f, 1.f);
+	}
+}
+
 void Level::applyPowerUp(PowerUpType type)
 {
 	switch(type)
@@ -955,6 +1106,7 @@ void Level::render(int windowWidth, int windowHeight)
 	for(size_t i = 0; i < explosions.size(); i++)
 		explosions[i]->render();
 	player->render();
+	renderBong();
 
 	// Cartel de fin de nivel, centrado en la vista
 	Sprite *banner = (state == LEVEL_CLEARED) ? clearSprite : (state == LEVEL_GAME_OVER) ? gameOverSprite : NULL;
@@ -981,6 +1133,12 @@ void Level::render(int windowWidth, int windowHeight)
 	{
 		setLetterboxViewport(windowWidth, windowHeight, VIEW_W, VIEW_H + HUD_HEIGHT);
 		vsScreen.render(Game::instance().getTexProgram(), VIEW_W, VIEW_H + HUD_HEIGHT);
+	}
+	// Fundido con trama hacia el final secreto (los ultimos ms ya en negro)
+	if(state == LEVEL_SECRET_FADE)
+	{
+		setLetterboxViewport(windowWidth, windowHeight, VIEW_W, VIEW_H + HUD_HEIGHT);
+		fade.render(Game::instance().getTexProgram(), stateTime * FADE_LEVELS / SECRET_DARK_TIME + 1);
 	}
 }
 

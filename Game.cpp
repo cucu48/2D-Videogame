@@ -5,6 +5,7 @@
 #include "MenuScene.h"
 #include "LevelSelectScene.h"
 #include "Level.h"
+#include "SecretScene.h"
 #include "Audio.h"
 #include "Sounds.h"
 
@@ -22,6 +23,7 @@ void Game::init()
 	scenes.push_back(new LevelSelectScene());
 	for(int i = 1; i <= NUM_LEVELS; i++)
 		scenes.push_back(new Level(i));
+	scenes.push_back(new SecretScene());   // SCENE_SECRET
 	for(size_t i = 0; i < scenes.size(); i++)
 		scenes[i]->init();
 
@@ -97,6 +99,15 @@ void Game::keyPressed(int key)
 	{
 		startLevel(levelNumber);
 		return;
+	}
+
+	// Truco (E): da todos los bongs de golpe, para probar el final secreto
+	if(key == GLFW_KEY_E)
+	{
+		for(int i = 0; i < NUM_BONGS; i++)
+			bongs[i] = true;
+		Audio::instance().playSound(SFX_COLLECT);
+		std::cout << "Truco: todos los bongs" << std::endl;
 	}
 
 	scenes[currentScene]->keyPressed(key);

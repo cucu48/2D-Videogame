@@ -11,3 +11,5 @@ item 8 5 armor
 item 11 13 wings
 item 2 14 remote
 item 1 17 fullfire
+# bong col row: el coleccionable escondido (en el hueco de abajo a la derecha, tapado por la cascada: hay que levantarla)
+bong 13 25

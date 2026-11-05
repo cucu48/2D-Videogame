@@ -17,9 +17,11 @@
 #define SCENE_LEVEL_SELECT 1
 #define SCENE_FIRST_LEVEL 2
 #define NUM_LEVELS 5
+#define SCENE_SECRET (SCENE_FIRST_LEVEL + NUM_LEVELS)   // final secreto, despues de los niveles
 #define START_LIVES 3
 #define DEFAULT_MAX_BOMBS 1
 #define DEFAULT_BLAST_RANGE 1
+#define NUM_BONGS 4             // coleccionables: uno escondido en cada uno de los stages 1-4
 
 
 // Power-ups that stay with the player from one level to the next (like lives).
@@ -43,7 +45,7 @@ class Game
 {
 
 private:
-	Game() { currentScene = 0; mouseX = mouseY = -1; }
+	Game() { currentScene = 0; mouseX = mouseY = -1; for(int i = 0; i < NUM_BONGS; i++) bongs[i] = false; }
 	~Game();
 	
 public:
@@ -88,6 +90,12 @@ public:
 	bool isGodMode() const { return bGodMode; }
 	void toggleGodMode() { bGodMode = !bGodMode; }
 
+	// Coleccionables (bongs): uno por stage 1-4. Se guardan mientras el juego
+	// esta abierto, aunque se pierda la partida.
+	bool hasBong(int levelNumber) const { return levelNumber >= 1 && levelNumber <= NUM_BONGS && bongs[levelNumber - 1]; }
+	void collectBong(int levelNumber) { if(levelNumber >= 1 && levelNumber <= NUM_BONGS) bongs[levelNumber - 1] = true; }
+	int bongCount() const { int n = 0; for(int i = 0; i < NUM_BONGS; i++) n += bongs[i] ? 1 : 0; return n; }
+
 	// Shader shared by all the scenes
 	ShaderProgram &getTexProgram() { return texProgram; }
 
@@ -96,6 +104,7 @@ private:
 
 private:
 	bool bPlay; // Continue to play game?
+	bool bongs[NUM_BONGS];
 	int windowWidth, windowHeight; // Tamaño real de la ventana en píxeles
 	bool keys[GLFW_KEY_LAST+1]; // Store key states so that 
 							    // we can have access at any time

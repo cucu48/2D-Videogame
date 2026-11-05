@@ -28,8 +28,8 @@ public:
 	void mousePress(int button);
 
 private:
-	Texture backgroundTex, indicatorTex, numbersTex;
-	Sprite *background, *indicator, *digit;
+	Texture backgroundTex, indicatorTex, numbersTex, bongTex;
+	Sprite *background, *indicator, *digit, *bong;
 	void updateHover(int x, int y);
 
 	int hovered; // 0 .. NUM_LEVELS-1, -1 if no level is highlighted

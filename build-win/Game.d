@@ -17,7 +17,7 @@ build-win/Game.o: Game.cpp Game.h Scene.h ShaderProgram.h Shader.h \
  C:/msys64/ucrt64/include/freetype2/freetype/fterrors.h \
  C:/msys64/ucrt64/include/freetype2/freetype/ftmoderr.h \
  C:/msys64/ucrt64/include/freetype2/freetype/fterrdef.h TexturedQuad.h \
- VsScreen.h Audio.h Sounds.h
+ VsScreen.h DitherFade.h SecretScene.h Audio.h Sounds.h
 Game.h:
 Scene.h:
 ShaderProgram.h:
@@ -56,5 +56,7 @@ C:/msys64/ucrt64/include/freetype2/freetype/ftmoderr.h:
 C:/msys64/ucrt64/include/freetype2/freetype/fterrdef.h:
 TexturedQuad.h:
 VsScreen.h:
+DitherFade.h:
+SecretScene.h:
 Audio.h:
 Sounds.h:

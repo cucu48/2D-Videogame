@@ -13,3 +13,5 @@ item 29 1 fireup
 item 1 2 speedup
 item 13 4 heart
 item 22 4 armor
+# bong col row: el coleccionable escondido (encerrado entre arbustos: hay que volarlos)
+bong 22 7

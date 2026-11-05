@@ -15,3 +15,5 @@ item 3 1 fireup
 item 9 1 bombup
 item 13 1 heart
 item 8 5 speedup
+# bong col row: el coleccionable escondido (encima del arbusto, en el hueco entre la pared y el borde derecho: hay que subir a la pared)
+bong 14 6
