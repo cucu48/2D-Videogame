@@ -112,6 +112,7 @@ void Level::init()
 	gameOverTex.setMinFilter(GL_NEAREST);
 	gameOverTex.setMagFilter(GL_NEAREST);
 	gameOverSprite = Sprite::createSprite(glm::vec2(gameOverTex.width() * 2, gameOverTex.height() * 2), glm::vec2(1.f, 1.f), &gameOverTex, &texProgram);
+	vsScreen.init(texProgram);
 
 	loadLevel();
 }
@@ -154,6 +155,11 @@ void Level::loadLevel()
 	freezeTime = 0;
 	bBossLevel = (boss != NULL);
 	Audio::instance().playMusic(levelMusic(), true);
+	if(bBossLevel)
+	{
+		state = LEVEL_INTRO;
+		vsScreen.start();
+	}
 }
 
 std::string Level::levelMusic() const
@@ -166,6 +172,15 @@ std::string Level::levelMusic() const
 void Level::update(int deltaTime)
 {
 	currentTime += deltaTime;
+
+	// Pantalla VS del jefe: el nivel esta parado hasta que acaba
+	if(state == LEVEL_INTRO)
+	{
+		vsScreen.update(deltaTime);
+		if(!vsScreen.isActive())
+			state = LEVEL_PLAYING;
+		return;
+	}
 
 	// Fin del nivel: solo se espera a que pase el cartel
 	if(state != LEVEL_PLAYING)
@@ -634,6 +649,13 @@ void Level::loadEntities(const string &entitiesFile)
 //TODO Debug only. Remove later.
 void Level::keyPressed(int key)
 {
+	// Pantalla VS: espacio o enter la saltan; el resto de teclas no hace nada
+	if(state == LEVEL_INTRO)
+	{
+		if(key == GLFW_KEY_SPACE || key == GLFW_KEY_ENTER)
+			vsScreen.skip();
+		return;
+	}
 	// D: con el mando a distancia, detona la bomba del jugador mas antigua
 	if(key == GLFW_KEY_D && remoteEnabled && state == LEVEL_PLAYING && !player->isDead())
 	{
@@ -953,5 +975,12 @@ void Level::render(int windowWidth, int windowHeight)
 	hudState.maxBombs = maxBombs;
 	hudState.blastRange = blastRange;
 	hud.render(hudState);
+
+	// Pantalla VS encima de todo (nivel y HUD)
+	if(state == LEVEL_INTRO)
+	{
+		setLetterboxViewport(windowWidth, windowHeight, VIEW_W, VIEW_H + HUD_HEIGHT);
+		vsScreen.render(Game::instance().getTexProgram(), VIEW_W, VIEW_H + HUD_HEIGHT);
+	}
 }
 

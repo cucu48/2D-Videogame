@@ -1,7 +1,8 @@
 build-win/Game.o: Game.cpp Game.h Scene.h ShaderProgram.h Shader.h \
  MenuScene.h Sprite.h Texture.h AnimKeyframes.h LevelSelectScene.h \
  Level.h TileMap.h Player.h Bomb.h Explosion.h Enemy.h Trent.h \
- Projectile.h Hud.h Text.h C:/msys64/ucrt64/include/freetype2/ft2build.h \
+ Projectile.h Pickup.h Door.h Hud.h Text.h \
+ C:/msys64/ucrt64/include/freetype2/ft2build.h \
  C:/msys64/ucrt64/include/freetype2/freetype/config/ftheader.h \
  C:/msys64/ucrt64/include/freetype2/freetype/freetype.h \
  C:/msys64/ucrt64/include/freetype2/freetype/config/ftconfig.h \
@@ -16,7 +17,7 @@ build-win/Game.o: Game.cpp Game.h Scene.h ShaderProgram.h Shader.h \
  C:/msys64/ucrt64/include/freetype2/freetype/fterrors.h \
  C:/msys64/ucrt64/include/freetype2/freetype/ftmoderr.h \
  C:/msys64/ucrt64/include/freetype2/freetype/fterrdef.h TexturedQuad.h \
- Audio.h Sounds.h
+ VsScreen.h Audio.h Sounds.h
 Game.h:
 Scene.h:
 ShaderProgram.h:
@@ -34,6 +35,8 @@ Explosion.h:
 Enemy.h:
 Trent.h:
 Projectile.h:
+Pickup.h:
+Door.h:
 Hud.h:
 Text.h:
 C:/msys64/ucrt64/include/freetype2/ft2build.h:
@@ -52,5 +55,6 @@ C:/msys64/ucrt64/include/freetype2/freetype/fterrors.h:
 C:/msys64/ucrt64/include/freetype2/freetype/ftmoderr.h:
 C:/msys64/ucrt64/include/freetype2/freetype/fterrdef.h:
 TexturedQuad.h:
+VsScreen.h:
 Audio.h:
 Sounds.h:

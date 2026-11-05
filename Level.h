@@ -15,6 +15,7 @@
 #include "Pickup.h"
 #include "Door.h"
 #include "Hud.h"
+#include "VsScreen.h"
 #include <vector>
 #include <map>
 
@@ -40,6 +41,7 @@ struct Waterfall
 enum LevelState
 {
 	LEVEL_PLAYING,
+	LEVEL_INTRO,     // boss level: "VS" screen before playing (everything stopped)
 	LEVEL_CLEARED,   // the player reached the open door: "WORLD CLEAR!!" and next level
 	LEVEL_GAME_OVER  // no lives left: "GAME OVER" and back to the menu
 };
@@ -115,6 +117,7 @@ private:
 	bool remoteEnabled;             // remote controller: D detonates a bomb
 	int freezeTime;                 // ms left of the timer power-up: clock and enemies stopped
 	Hud hud;
+	VsScreen vsScreen;
 	LevelState state;
 	int stateTime;                  // ms since the current state started
 	bool bBossLevel;
