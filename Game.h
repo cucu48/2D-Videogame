@@ -45,7 +45,7 @@ class Game
 {
 
 private:
-	Game() { currentScene = 0; mouseX = mouseY = -1; for(int i = 0; i < NUM_BONGS; i++) bongs[i] = false; }
+	Game() { currentScene = 0; suspendedScene = -1; mouseX = mouseY = -1; for(int i = 0; i < NUM_BONGS; i++) bongs[i] = false; }
 	~Game();
 	
 public:
@@ -76,6 +76,14 @@ public:
 
 	// Scene management
 	void changeScene(int index);
+	void quit() { bPlay = false; }
+
+	// "Menu principal" desde la pausa: el nivel se queda tal cual (con sus
+	// power-ups, vidas, enemigos...) y desde el menu se puede continuar.
+	// Empezar otro nivel la descarta.
+	void suspendToMenu();
+	bool hasSuspendedGame() const { return suspendedScene >= 0; }
+	void resumeSuspendedGame();
 	void startLevel(int levelNumber); // levelNumber goes from 1 to NUM_LEVELS
 
 	// Lives last the whole game (they carry over between levels). Leaving the
@@ -110,6 +118,9 @@ private:
 							    // we can have access at any time
 	std::vector<Scene *> scenes;
 	int currentScene;
+	int suspendedScene;             // nivel dejado desde la pausa, o -1
+	int suspendedLives;
+	PowerUpState suspendedPowerUps;
 	int lives;
 	PowerUpState powerUpState;
 	bool bGodMode;

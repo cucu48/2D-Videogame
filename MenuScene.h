@@ -5,9 +5,11 @@
 #include "Scene.h"
 #include "Sprite.h"
 #include "Texture.h"
+#include "TextMenu.h"
 
 
-// Main menu: background, title and a blinking "press space" message.
+// Main menu: background, title and the buttons (in Catalan): "Continuar" (only
+// when a game was left from the pause menu), "Jugar" / "Nova partida" and "Sortir".
 
 
 class MenuScene : public Scene
@@ -22,11 +24,16 @@ public:
 	void update(int deltaTime);
 	void render(int windowWidth, int windowHeight);
 	void keyPressed(int key);
+	void mouseMove(int x, int y);
+	void mousePress(int button);
 
 private:
-	Texture backgroundTex, titleTex, promptTex;
-	Sprite *background, *title, *prompt;
-	int blinkTime;
+	void choose(int item);
+
+	Texture backgroundTex, titleTex;
+	Sprite *background, *title;
+	TextMenu buttons;
+	bool bContinue;                 // the first button is "Continuar"
 
 };
 

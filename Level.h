@@ -17,6 +17,7 @@
 #include "Hud.h"
 #include "VsScreen.h"
 #include "DitherFade.h"
+#include "TextMenu.h"
 #include <vector>
 #include <map>
 
@@ -58,8 +59,11 @@ public:
 
 	void init();
 	void onEnter();                  // restarts the stage
+	void onResume();                 // back from the main menu ("Continuar"): as it was
 	void update(int deltaTime);
 	void render(int windowWidth, int windowHeight);
+	void mouseMove(int x, int y);
+	void mousePress(int button);
 	void keyPressed(int key);        // D detonates a bomb (remote controller); debug: H toggles the heart, K kills every enemy, G god mode
 
 	// true si la caja (en pixeles del mapa) toca algun tile en llamas.
@@ -80,6 +84,7 @@ private:
 	void destroyBush(const glm::ivec2 &tile);   // swaps it for sky and reveals the item hidden under it, if any
 	void updatePickups();
 	void applyPowerUp(PowerUpType type);
+	int currentBlastRange() const;   // con el Full Fire, el maximo
 	std::string levelMusic() const;  // music of this stage (boss, or one per stage)
 	void finishLevel();              // goes to the next level (or the menu after the last one)
 	void placeBomb();
@@ -96,6 +101,15 @@ private:
 	void updateBong(int deltaTime);
 	void renderBong();
 	void updateFinalBong(int deltaTime);
+	// Pausa (Esc): oscurece la partida y muestra "Continuar / Opcions / Menu principal";
+	// en opciones se cambia el volumen. La musica baja al 50% mientras tanto.
+	void openPause();
+	void closePause();
+	void showPauseScreen(bool options);
+	void pauseChoose(int item);
+	void changeVolume(int step);
+	void renderPause();
+	bool pauseMousePos(glm::vec2 &p) const;
 	bool overlapsTile(const glm::ivec2 &pos, const glm::ivec2 &size, const glm::ivec2 &tile) const;
 
 private:
@@ -118,7 +132,8 @@ private:
 	float currentTime;
 	int timeLeft;                   // ms
 	int maxBombs;                   // bombs that can be on the map at the same time
-	int blastRange;                 // tiles the explosion reaches in each direction
+	int blastRange;                 // tiles the explosion reaches in each direction (sin contar el Full Fire)
+	bool bFullFire;                 // Full Fire: alcance maximo, solo durante este stage
 	bool remoteEnabled;             // remote controller: D detonates a bomb
 	int freezeTime;                 // ms left of the timer power-up: clock and enemies stopped
 	Hud hud;
@@ -138,6 +153,9 @@ private:
 	glm::vec2 finalBongPos;
 	float finalBongVel;
 	DitherFade fade;
+	bool bPaused;
+	bool bPauseOptions;             // en la pantalla de opciones
+	TextMenu pauseMenu;
 	Texture clearTex, gameOverTex;
 	Sprite *clearSprite, *gameOverSprite;
 	glm::mat4 projection;

@@ -116,6 +116,12 @@ void LevelSelectScene::render(int windowWidth, int windowHeight)
 
 void LevelSelectScene::keyPressed(int key)
 {
+	// Esc: vuelve al menu principal
+	if(key == GLFW_KEY_ESCAPE)
+	{
+		Game::instance().changeScene(SCENE_MENU);
+		return;
+	}
 	if(key == GLFW_KEY_UP || key == GLFW_KEY_LEFT)
 		hovered = (hovered < 0) ? NUM_LEVELS - 1 : (hovered + NUM_LEVELS - 1) % NUM_LEVELS;
 	else if(key == GLFW_KEY_DOWN || key == GLFW_KEY_RIGHT)

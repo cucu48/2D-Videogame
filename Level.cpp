@@ -122,6 +122,9 @@ void Level::init()
 	gameOverSprite = Sprite::createSprite(glm::vec2(gameOverTex.width() * 2, gameOverTex.height() * 2), glm::vec2(1.f, 1.f), &gameOverTex, &texProgram);
 	vsScreen.init(texProgram);
 	fade.init(texProgram, VIEW_W, VIEW_H + HUD_HEIGHT);
+	pauseMenu.init();
+	bPaused = false;
+	bPauseOptions = false;
 
 	// Coleccionable: images/bong.png, 2 frames de 16x16 (el segundo con brillo) a x2
 	bongTex.loadFromFile("images/bong.png", TEXTURE_PIXEL_FORMAT_RGBA);
@@ -143,7 +146,20 @@ void Level::init()
 void Level::onEnter()
 {
 	cleanup();
+	bPaused = false;
+	Audio::instance().setMusicDucked(false);
 	loadLevel();
+}
+
+// Vuelta desde el menu principal: todo sigue como estaba, solo vuelve la musica
+void Level::onResume()
+{
+	bPaused = false;
+	Audio::instance().setMusicDucked(false);
+	if(state == LEVEL_SECRET_FADE && stateTime >= SECRET_MUSIC_TIME)
+		Audio::instance().playMusic(MUSIC_SECRET, true);
+	else if(!player->isDead())
+		Audio::instance().playMusic(levelMusic(), true);
 }
 
 void Level::loadLevel()
@@ -176,6 +192,7 @@ void Level::loadLevel()
 	timeLeft = LEVEL_TIME;
 	maxBombs = carried.maxBombs;
 	blastRange = carried.blastRange;
+	bFullFire = false;
 	remoteEnabled = carried.remote;
 	freezeTime = 0;
 	bBossLevel = (boss != NULL);
@@ -196,6 +213,8 @@ std::string Level::levelMusic() const
 
 void Level::update(int deltaTime)
 {
+	if(bPaused)
+		return;
 	currentTime += deltaTime;
 
 	// Pantalla VS del jefe: el nivel esta parado hasta que acaba
@@ -701,6 +720,32 @@ void Level::loadEntities(const string &entitiesFile)
 //TODO Debug only. Remove later.
 void Level::keyPressed(int key)
 {
+	// Pausa: las teclas son para sus botones
+	if(bPaused)
+	{
+		if(key == GLFW_KEY_ESCAPE)
+		{
+			Audio::instance().playSound(SFX_SELECT);
+			if(bPauseOptions)
+				showPauseScreen(false);
+			else
+				closePause();
+			return;
+		}
+		if(bPauseOptions && pauseMenu.getSelected() == 0 && (key == GLFW_KEY_LEFT || key == GLFW_KEY_A))
+			changeVolume(-1);
+		else if(bPauseOptions && pauseMenu.getSelected() == 0 && (key == GLFW_KEY_RIGHT || key == GLFW_KEY_D))
+			changeVolume(1);
+		else
+			pauseChoose(pauseMenu.keyPressed(key));
+		return;
+	}
+	if(key == GLFW_KEY_ESCAPE)
+	{
+		if(state == LEVEL_PLAYING)
+			openPause();
+		return;
+	}
 	// Pantalla VS: espacio o enter la saltan; el resto de teclas no hace nada
 	if(state == LEVEL_INTRO)
 	{
@@ -793,7 +838,7 @@ void Level::explodeBomb(int index)
 {
 	Bomb *bomb = bombs[index];
 	glm::ivec2 tile = bomb->getTile();
-	int range = bomb->isEnemyBomb() ? bomb->getRange() : blastRange;
+	int range = bomb->isEnemyBomb() ? bomb->getRange() : currentBlastRange();
 	bool horizontalOnly = bomb->isHorizontalOnly();
 	bool fromEnemy = bomb->isEnemyBomb();
 	int skipArm = bomb->getSkipArm();
@@ -969,6 +1014,11 @@ void Level::renderBong()
 	}
 }
 
+int Level::currentBlastRange() const
+{
+	return bFullFire ? MAX_BLAST_RANGE : blastRange;
+}
+
 void Level::applyPowerUp(PowerUpType type)
 {
 	switch(type)
@@ -977,10 +1027,11 @@ void Level::applyPowerUp(PowerUpType type)
 		maxBombs = std::min(maxBombs + 1, MAX_BOMBS_LIMIT);
 		break;
 	case PU_FIRE_UP:
+		// tambien cuenta con el Full Fire activo: se nota en el stage siguiente
 		blastRange = std::min(blastRange + 1, MAX_BLAST_RANGE);
 		break;
 	case PU_FULL_FIRE:
-		blastRange = MAX_BLAST_RANGE;
+		bFullFire = true;   // solo este stage (finishLevel pasa blastRange, no el maximo)
 		break;
 	case PU_SPEED_UP:
 		player->addSpeed();
@@ -1071,6 +1122,120 @@ bool Level::overlapsTile(const glm::ivec2 &pos, const glm::ivec2 &size, const gl
 	       pos.y < ty + tileSize && pos.y + size.y > ty;
 }
 
+// --- Pausa ---
+
+#define PAUSE_DARKEN 3          // nivel de la trama (de 8) con que se oscurece la partida
+#define VOLUME_STEP 0.1f
+
+void Level::openPause()
+{
+	bPaused = true;
+	Audio::instance().playSound(SFX_SELECT);
+	Audio::instance().setMusicDucked(true);
+	showPauseScreen(false);
+}
+
+void Level::closePause()
+{
+	bPaused = false;
+	Audio::instance().setMusicDucked(false);
+}
+
+void Level::showPauseScreen(bool options)
+{
+	bPauseOptions = options;
+	std::vector<std::string> items;
+	if(options)
+	{
+		items.push_back("");   // volumen: el texto lo pone changeVolume
+		items.push_back("TORNAR");
+	}
+	else
+	{
+		items.push_back("CONTINUAR");
+		items.push_back("OPCIONS");
+		items.push_back("MENU PRINCIPAL");
+	}
+	pauseMenu.setItems(items);
+	pauseMenu.setSelected(0);
+	pauseMenu.setLayout(VIEW_W / 2.f, 150.f, 12, 20.f);
+	if(options)
+		changeVolume(0);
+}
+
+void Level::changeVolume(int step)
+{
+	Audio &audio = Audio::instance();
+	if(step != 0)
+	{
+		audio.setVolume(audio.getVolume() + step * VOLUME_STEP);
+		audio.playSound(SFX_SELECT);   // para oir como suena
+	}
+	int percent = int(audio.getVolume() * 100.f + 0.5f);
+	pauseMenu.setItem(0, "VOLUM  - " + to_string(percent) + "% +");
+}
+
+void Level::pauseChoose(int item)
+{
+	if(item < 0)
+		return;
+	Audio::instance().playSound(SFX_SELECT);
+	if(bPauseOptions)
+	{
+		if(item == 1)
+			showPauseScreen(false);
+		return;
+	}
+	if(item == 0)
+		closePause();
+	else if(item == 1)
+		showPauseScreen(true);
+	else
+	{
+		player->stopDance();
+		bPaused = false;
+		Audio::instance().setMusicDucked(false);
+		Game::instance().suspendToMenu();
+	}
+}
+
+bool Level::pauseMousePos(glm::vec2 &p) const
+{
+	Game &game = Game::instance();
+	return windowToVirtual(game.getMouseX(), game.getMouseY(), game.getWindowWidth(), game.getWindowHeight(),
+	                       VIEW_W, VIEW_H + HUD_HEIGHT, p);
+}
+
+void Level::mouseMove(int /*x*/, int /*y*/)
+{
+	glm::vec2 p;
+	if(bPaused && pauseMousePos(p))
+		pauseMenu.hover(p);
+}
+
+void Level::mousePress(int button)
+{
+	glm::vec2 p;
+	if(!bPaused || button != GLFW_MOUSE_BUTTON_LEFT || !pauseMousePos(p))
+		return;
+	int item = pauseMenu.hover(p);
+	// volumen: a la izquierda del centro baja, a la derecha sube
+	if(bPauseOptions && item == 0)
+		changeVolume(p.x < pauseMenu.itemCenterX() ? -1 : 1);
+	else
+		pauseChoose(item);
+}
+
+void Level::renderPause()
+{
+	ShaderProgram &program = Game::instance().getTexProgram();
+	fade.render(program, PAUSE_DARKEN);
+	glm::mat4 projection = glm::ortho(0.f, float(VIEW_W), float(VIEW_H + HUD_HEIGHT), 0.f);
+	pauseMenu.renderLabel(projection, bPauseOptions ? "OPCIONS" : "PAUSA", VIEW_W / 2.f, 116.f, 24,
+	                      glm::vec4(1.f, 1.f, 1.f, 1.f));
+	pauseMenu.render(projection);
+}
+
 void Level::render(int windowWidth, int windowHeight)
 {
 	// The virtual screen is the playfield with the HUD strip below it: split the letterboxed viewport
@@ -1125,7 +1290,7 @@ void Level::render(int windowWidth, int windowHeight)
 	hudState.lives = Game::instance().getLives();
 	hudState.enemiesLeft = int(enemies.size()) + (boss != NULL ? 1 : 0);
 	hudState.maxBombs = maxBombs;
-	hudState.blastRange = blastRange;
+	hudState.blastRange = currentBlastRange();
 	hud.render(hudState);
 
 	// Pantalla VS encima de todo (nivel y HUD)
@@ -1133,6 +1298,11 @@ void Level::render(int windowWidth, int windowHeight)
 	{
 		setLetterboxViewport(windowWidth, windowHeight, VIEW_W, VIEW_H + HUD_HEIGHT);
 		vsScreen.render(Game::instance().getTexProgram(), VIEW_W, VIEW_H + HUD_HEIGHT);
+	}
+	if(bPaused)
+	{
+		setLetterboxViewport(windowWidth, windowHeight, VIEW_W, VIEW_H + HUD_HEIGHT);
+		renderPause();
 	}
 	// Fundido con trama hacia el final secreto (los ultimos ms ya en negro)
 	if(state == LEVEL_SECRET_FADE)

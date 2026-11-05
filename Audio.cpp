@@ -1,3 +1,4 @@
+#include <cmath>
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
@@ -44,6 +45,8 @@ Audio::Audio()
 	impl = NULL;
 	bInitialized = false;
 	bFailed = false;
+	volume = 1.f;
+	bDucked = false;
 	bMusicLoop = false;
 }
 
@@ -108,6 +111,7 @@ bool Audio::init()
 		return false;
 	}
 	cerr << "Audio: using " << ma_get_backend_name(impl->context.backend) << endl;
+	ma_engine_set_volume(&impl->engine, volumeGain(volume));
 	bInitialized = true;
 	return true;
 }
@@ -150,6 +154,7 @@ bool Audio::playMusic(const string &file, bool loop)
 		return false;
 	}
 	impl->music = s;
+	applyMusicVolume();
 	ma_sound_set_looping(s, loop ? MA_TRUE : MA_FALSE);
 	// Optional loop points: "<file>.loop" holds the first and the end frame of
 	// the part that repeats, so the intro only sounds once and the loop is seamless
@@ -215,7 +220,36 @@ void Audio::popMusic()
 	impl->paused = NULL;
 	musicFile = impl->pausedFile;
 	bMusicLoop = impl->pausedLoop;
+	applyMusicVolume();
 	ma_sound_start(impl->music);
+}
+
+void Audio::setVolume(float v)
+{
+	volume = v < 0.f ? 0.f : (v > 1.f ? 1.f : v);
+	if(bInitialized)
+		ma_engine_set_volume(&impl->engine, volumeGain(volume));
+}
+
+// El oido es logaritmico: con el volumen lineal casi no se nota la diferencia
+// hasta llegar abajo del todo. Cada paso del 10% son 4 dB (100% = 0 dB, 10% = -36 dB).
+float Audio::volumeGain(float v)
+{
+	if(v <= 0.001f)
+		return 0.f;
+	return powf(10.f, (v - 1.f) * 2.f);
+}
+
+void Audio::setMusicDucked(bool ducked)
+{
+	bDucked = ducked;
+	applyMusicVolume();
+}
+
+void Audio::applyMusicVolume()
+{
+	if(impl != NULL && impl->music != NULL)
+		ma_sound_set_volume(impl->music, bDucked ? 0.5f : 1.f);
 }
 
 // Creates one more voice for a sound effect, fully decoded in memory. The

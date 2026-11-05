@@ -46,12 +46,35 @@ void Game::changeScene(int index)
 	if(index < 0 || index >= int(scenes.size()))
 		return;
 	currentScene = index;
+	if(index >= SCENE_FIRST_LEVEL)
+		suspendedScene = -1;   // otra partida: la que estaba en pausa se pierde
 	if(index < SCENE_FIRST_LEVEL)
 	{
 		lives = START_LIVES;
 		powerUpState = PowerUpState();
 	}
 	scenes[currentScene]->onEnter();
+}
+
+void Game::suspendToMenu()
+{
+	// antes de cambiar de escena, para que el menu ya ofrezca "Continuar"
+	// (cambiar al menu reinicia las vidas y los power-ups: se guardan aparte)
+	suspendedScene = currentScene;
+	suspendedLives = lives;
+	suspendedPowerUps = powerUpState;
+	changeScene(SCENE_MENU);
+}
+
+void Game::resumeSuspendedGame()
+{
+	if(suspendedScene < 0)
+		return;
+	currentScene = suspendedScene;
+	suspendedScene = -1;
+	lives = suspendedLives;
+	powerUpState = suspendedPowerUps;
+	scenes[currentScene]->onResume();
 }
 
 void Game::startLevel(int levelNumber)
@@ -85,8 +108,7 @@ void Game::keyPressed(int key)
 {
 	if(key < 0 || key > GLFW_KEY_LAST)
 		return;
-	if(key == GLFW_KEY_ESCAPE)
-		bPlay = false;
+	// Esc ya no sale del juego: en los niveles pausa (para salir, "Sortir" en el menu)
 	keys[key] = true;
 
 	// Number keys go straight to the matching level from any scene

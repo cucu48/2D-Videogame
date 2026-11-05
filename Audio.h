@@ -40,6 +40,12 @@ public:
 	const std::string &currentMusic() const { return musicFile; }
 	bool currentMusicLoops() const { return bMusicLoop; }
 
+	// Volumen general (0..1), lo cambia la pantalla de opciones
+	void setVolume(float v);
+	float getVolume() const { return volume; }
+	// Musica al 50% (pausa y opciones) para que no moleste
+	void setMusicDucked(bool ducked);
+
 	void playSound(const std::string &file);
 	// Loads a sound effect into memory now, so the first play has no delay
 	void preload(const std::string &file);
@@ -49,6 +55,8 @@ private:
 	void dropPaused();
 	bool resolve(const std::string &file, std::string &path); // adds the extension; false if missing
 	void *newVoice(const std::string &file);                   // ma_sound* ready to play, or NULL
+	void applyMusicVolume();
+	static float volumeGain(float v);                          // volumen de la barra (0..1) a amplitud
 
 private:
 	struct Impl;
@@ -59,6 +67,8 @@ private:
 	// Sound effects decoded in memory: several voices per file so they can overlap
 	std::map<std::string, std::vector<void *> > voices;
 	bool bMusicLoop;
+	float volume;
+	bool bDucked;
 
 };
 

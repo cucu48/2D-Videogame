@@ -19,6 +19,7 @@ public:
 
 	virtual void init() = 0;                        // creates GL resources, called once at startup
 	virtual void onEnter() {}                       // called every time the scene becomes the current one
+	virtual void onResume() {}                      // back to a level left from the pause menu (no reset)
 	virtual void update(int deltaTime) = 0;
 	virtual void render(int windowWidth, int windowHeight) = 0;
 	virtual void keyPressed(int /*key*/) {}             // one call per key press (no auto repeat)

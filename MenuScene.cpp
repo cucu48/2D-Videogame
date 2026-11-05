@@ -1,15 +1,20 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <glm/gtc/matrix_transform.hpp>
 #include "MenuScene.h"
 #include "Audio.h"
 #include "Sounds.h"
 #include "Game.h"
 
 
-// The menu is drawn on a 160x144 virtual screen (the size of the art)
+// The menu is drawn on a 160x144 virtual screen (the size of the art). The
+// buttons use twice that resolution so the text looks like in the levels.
 #define VIRTUAL_WIDTH 160
 #define VIRTUAL_HEIGHT 144
-#define BLINK_TIME 500
+#define TEXT_SCALE 2
+#define BUTTON_SIZE 14
+#define BUTTON_SPACING 18.f
+#define BUTTONS_BOTTOM 278.f    // baseline of the last button (in text pixels)
 
 
 static Sprite *createImage(Texture &tex, const char *file, ShaderProgram &program)
@@ -23,15 +28,14 @@ static Sprite *createImage(Texture &tex, const char *file, ShaderProgram &progra
 
 MenuScene::MenuScene()
 {
-	background = title = prompt = NULL;
-	blinkTime = 0;
+	background = title = NULL;
+	bContinue = false;
 }
 
 MenuScene::~MenuScene()
 {
 	delete background;
 	delete title;
-	delete prompt;
 }
 
 void MenuScene::init()
@@ -40,21 +44,29 @@ void MenuScene::init()
 
 	background = createImage(backgroundTex, "images/MenuBG.png", program);
 	title = createImage(titleTex, "images/BombermanTitle.png", program);
-	prompt = createImage(promptTex, "images/PressSpace.png", program);
-
 	title->setPosition(glm::vec2((VIRTUAL_WIDTH - titleTex.width()) / 2, 8));
-	prompt->setPosition(glm::vec2((VIRTUAL_WIDTH - promptTex.width()) / 2, 128));
+	buttons.init();
 }
 
 void MenuScene::onEnter()
 {
-	blinkTime = 0;
+	Audio::instance().setMusicDucked(false);
 	Audio::instance().playMusic(MUSIC_TITLE, true);
+	// With a game left from the pause menu, it can be continued
+	bContinue = Game::instance().hasSuspendedGame();
+	std::vector<std::string> items;
+	if(bContinue)
+		items.push_back("CONTINUAR");
+	items.push_back(bContinue ? "NOVA PARTIDA" : "JUGAR");
+	items.push_back("SORTIR");
+	buttons.setItems(items);
+	buttons.setSelected(0);
+	float first = BUTTONS_BOTTOM - (items.size() - 1) * BUTTON_SPACING;
+	buttons.setLayout(VIRTUAL_WIDTH * TEXT_SCALE / 2.f, first, BUTTON_SIZE, BUTTON_SPACING);
 }
 
-void MenuScene::update(int deltaTime)
+void MenuScene::update(int /*deltaTime*/)
 {
-	blinkTime = (blinkTime + deltaTime) % (2 * BLINK_TIME);
 }
 
 void MenuScene::render(int windowWidth, int windowHeight)
@@ -68,15 +80,46 @@ void MenuScene::render(int windowWidth, int windowHeight)
 
 	background->render();
 	title->render();
-	if(blinkTime < BLINK_TIME)
-		prompt->render();
+
+	glm::mat4 textProjection = glm::ortho(0.f, float(VIRTUAL_WIDTH * TEXT_SCALE), float(VIRTUAL_HEIGHT * TEXT_SCALE), 0.f);
+	buttons.render(textProjection);
+}
+
+void MenuScene::choose(int item)
+{
+	if(item < 0)
+		return;
+	Audio::instance().playSound(SFX_SELECT);
+	if(!bContinue)
+		item++;   // without "Continuar" the buttons start at "Jugar"
+	if(item == 0)
+		Game::instance().resumeSuspendedGame();
+	else if(item == 1)
+		Game::instance().changeScene(SCENE_LEVEL_SELECT);
+	else
+		Game::instance().quit();
 }
 
 void MenuScene::keyPressed(int key)
 {
-	if(key == GLFW_KEY_SPACE)
-	{
-		Audio::instance().playSound(SFX_SELECT);
-		Game::instance().changeScene(SCENE_LEVEL_SELECT);
-	}
+	choose(buttons.keyPressed(key));
+}
+
+void MenuScene::mouseMove(int x, int y)
+{
+	Game &game = Game::instance();
+	glm::vec2 p;
+	if(windowToVirtual(x, y, game.getWindowWidth(), game.getWindowHeight(), VIRTUAL_WIDTH * TEXT_SCALE, VIRTUAL_HEIGHT * TEXT_SCALE, p))
+		buttons.hover(p);
+}
+
+void MenuScene::mousePress(int button)
+{
+	if(button != GLFW_MOUSE_BUTTON_LEFT)
+		return;
+	Game &game = Game::instance();
+	glm::vec2 p;
+	if(windowToVirtual(game.getMouseX(), game.getMouseY(), game.getWindowWidth(), game.getWindowHeight(),
+	                   VIRTUAL_WIDTH * TEXT_SCALE, VIRTUAL_HEIGHT * TEXT_SCALE, p))
+		choose(buttons.hover(p));
 }
