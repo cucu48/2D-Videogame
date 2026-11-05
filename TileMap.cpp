@@ -115,6 +115,20 @@ bool TileMap::loadLevel(const string &levelFile)
 			solidTile[id] = false;
 	sstream.clear();
 
+	// Linea opcional "BUSH id": tile que es un arbusto (solido, lo destruyen las explosiones)
+	bushTile = -1;
+	streampos afterSolid = fin.tellg();
+	if(getline(fin, line) && line.compare(0, 4, "BUSH") == 0)
+	{
+		stringstream bush(line.substr(4));
+		if(!(bush >> bushTile) || bushTile < 0 || bushTile >= int(solidTile.size()) || !solidTile[bushTile])
+			return false; // mal formada, o el arbusto esta en NONSOLID
+	}
+	else
+	{
+		fin.clear();
+		fin.seekg(afterSolid);
+	}
 
 	vector<int> tiles;
 	for(int j=0; j<mapSize.y; j++)

@@ -1,0 +1,13 @@
+# Stage1-2 entities (see Stage1-1_entities.txt for the format)
+# types: 0 Jacky, 1 Eyti, 2-4 jumpers, 5 Cloudy, 6 Springchicken, 7 Elekin Man, 8 Leaf
+door 9 7
+enemy 9 4 0 -1
+enemy 8 7 1 -1
+enemy 12 22 6 1
+enemy 11 17 7 -1
+waterfall 10 18 25
+item 13 2 timer
+item 8 5 armor
+item 11 13 wings
+item 2 14 remote
+item 1 17 fullfire

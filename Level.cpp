@@ -8,24 +8,26 @@
 #include <algorithm>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 
 
 
 #define INIT_PLAYER_X_TILES 4
-#define DEFAULT_MAX_BOMBS 5
-#define DEFAULT_BLAST_RANGE 3
 #define LEVEL_TIME 240000 // 4 minutes
 #define RESPAWN_TIME 2000
 #define VIEW_W 320
 #define VIEW_H 288
 #define CLEAR_TIME 5500     // ms showing "WORLD CLEAR!!" before the next level (lo que dura music_clear)
 #define GAME_OVER_TIME 3000 // ms showing "GAME OVER" before going back to the menu
-#define TRENT_TYPE 9          // en el fichero de enemigos, el tipo 9 es el jefe Trent
 #define BUBBLE_SPEED 1.5f
 #define SPORE_SPEED 2.f
 #define BOMB_RAIN_RANGE 4
 #define BOMB_RAIN_FUSE 2000
-#define WATERFALL_STEP 90     // ms entre cada tile de agua que se retira
+#define WATERFALL_STEP 180    // ms entre cada tile de agua que se retira
+#define MAX_BOMBS_LIMIT 9     // Bomb Up
+#define MAX_BLAST_RANGE 4     // Fire Up / Full Fire
+#define ARMOR_TIME 10000      // ms de inmunidad de la chaqueta
+#define FREEZE_TIME 20000     // ms que dura el reloj (timer)
 
 
 Level::Level(int number)
@@ -34,6 +36,7 @@ Level::Level(int number)
 	map = NULL;
 	player = NULL;
 	boss = NULL;
+	door = NULL;
 	clearSprite = NULL;
 	gameOverSprite = NULL;
 }
@@ -71,6 +74,13 @@ void Level::cleanup()
 	if(boss != NULL)
 		delete boss;
 	boss = NULL;
+	for(size_t i = 0; i < pickups.size(); i++)
+		delete pickups[i];
+	pickups.clear();
+	itemUnderBush.clear();
+	if(door != NULL)
+		delete door;
+	door = NULL;
 }
 
 void Level::init()
@@ -84,6 +94,12 @@ void Level::init()
 	enemySheet.loadFromFile("images/enemies.png", TEXTURE_PIXEL_FORMAT_RGBA);
 	enemySheet.setMinFilter(GL_NEAREST);
 	enemySheet.setMagFilter(GL_NEAREST);
+	powerUpSheet.loadFromFile("images/PowerUps.png", TEXTURE_PIXEL_FORMAT_RGBA);
+	powerUpSheet.setMinFilter(GL_NEAREST);
+	powerUpSheet.setMagFilter(GL_NEAREST);
+	doorSheet.loadFromFile("images/Doors.png", TEXTURE_PIXEL_FORMAT_RGBA);
+	doorSheet.setMinFilter(GL_NEAREST);
+	doorSheet.setMagFilter(GL_NEAREST);
 	hud.init();
 
 	// Carteles de fin de nivel (imagenes a x2)
@@ -117,21 +133,26 @@ void Level::loadLevel()
 	spawnPos = glm::vec2(map->findSpawn(INIT_PLAYER_X_TILES, glm::ivec2(32, 32)));
 	player->setPosition(spawnPos);
 	player->setTileMap(map);
-	bHasDoor = false;
+	// Los power-ups permanentes pasan de un nivel al siguiente (ver Game::powerUps)
+	PowerUpState &carried = Game::instance().powerUps();
+	player->setSpeedMul(carried.speedMul);
+	player->setWings(carried.wings);
+	player->setHeart(carried.heart);
 	waterfalls.clear();
-	loadEnemies(stage + "_enemies.txt");
+	loadEntities(stage + "_entities.txt");
 	initialEnemies = int(enemies.size()) + (boss != NULL ? 1 : 0);
 	state = LEVEL_PLAYING;
 	stateTime = 0;
 	deathTime = 0;
 	bombKeyWasPressed = false;
-	updateCamera();
+	updateCamera(true);
 	currentTime = 0.0f;
 	timeLeft = LEVEL_TIME;
-	maxBombs = DEFAULT_MAX_BOMBS;
-	blastRange = DEFAULT_BLAST_RANGE;
+	maxBombs = carried.maxBombs;
+	blastRange = carried.blastRange;
+	remoteEnabled = carried.remote;
+	freezeTime = 0;
 	bBossLevel = (boss != NULL);
-	bDoorWasOpen = isDoorOpen();
 	Audio::instance().playMusic(levelMusic(), true);
 }
 
@@ -157,7 +178,12 @@ void Level::update(int deltaTime)
 		return;
 	}
 
-	timeLeft = std::max(0, timeLeft - deltaTime);
+	// Timer: mientras dura, el reloj y todo lo enemigo se detienen
+	bool frozen = freezeTime > 0;
+	if(frozen)
+		freezeTime = std::max(0, freezeTime - deltaTime);
+	else
+		timeLeft = std::max(0, timeLeft - deltaTime);
 	player->update(deltaTime);
 
 	// Z: place bomb
@@ -169,7 +195,8 @@ void Level::update(int deltaTime)
 	// Bombas: cuenta atras y paso de "atravesable" a "solida"
 	for(size_t i = 0; i < bombs.size(); i++)
 	{
-		bombs[i]->update(deltaTime);
+		if(!(frozen && bombs[i]->isEnemyBomb()))
+			bombs[i]->update(deltaTime);
 		if(bombs[i]->isPassable() && !overlapsTile(player->hitboxPos(), player->hitboxSize(), bombs[i]->getTile()))
 		{
 			bombs[i]->makeSolid();
@@ -201,9 +228,10 @@ void Level::update(int deltaTime)
 	}
 
 	updateWaterfalls(deltaTime);
-	updateEnemies(deltaTime);
-	updateBoss(deltaTime);
-	updateProjectiles(deltaTime);
+	updateEnemies(deltaTime, frozen);
+	updateBoss(deltaTime, frozen);
+	updateProjectiles(deltaTime, frozen);
+	updatePickups();
 
 	// Damage to player
 	if(!player->isDead() && !player->isInvulnerable() && isOnFire(player->hitboxPos(), player->hitboxSize()))
@@ -220,10 +248,12 @@ void Level::update(int deltaTime)
 	}
 
 	// Sonido al abrirse la puerta (ya no quedan enemigos)
-	bool doorOpen = isDoorOpen();
-	if(doorOpen && !bDoorWasOpen && bHasDoor)
+	// La puerta se abre (y deja de ser solida) cuando ya no quedan enemigos
+	if(door != NULL && !door->isOpen() && isDoorOpen())
+	{
+		door->open();
 		Audio::instance().playSound(SFX_DOOR_OPEN);
-	bDoorWasOpen = doorOpen;
+	}
 
 	if(player->isDead())
 	{
@@ -247,7 +277,7 @@ void Level::update(int deltaTime)
 	}
 
 	// Ganar: con todos los enemigos eliminados, llegar a la puerta
-	else if(isDoorOpen() && (bHasDoor ? playerAtDoor() : initialEnemies > 0))
+	else if(isDoorOpen() && (door != NULL ? playerAtDoor() : initialEnemies > 0))
 	{
 		player->stopDance();
 		state = LEVEL_CLEARED;
@@ -273,13 +303,14 @@ bool Level::touchesPlayer(const glm::ivec2 &pos, const glm::ivec2 &size) const
 }
 
 // Enemigos: se mueven, mueren con el fuego y hacen dano al jugador si le tocan
-void Level::updateEnemies(int deltaTime)
+void Level::updateEnemies(int deltaTime, bool frozen)
 {
 	glm::ivec2 playerCenter = player->hitboxPos() + player->hitboxSize() / 2;
 	for(size_t i = 0; i < enemies.size(); )
 	{
 		Enemy *enemy = enemies[i];
-		enemy->update(deltaTime, playerCenter, !player->isDead());
+		if(!frozen || enemy->isDying())
+			enemy->update(deltaTime, playerCenter, !player->isDead());
 		if(!enemy->isDying() && isOnFire(enemy->hitboxPos(), enemy->hitboxSize()))
 		{
 			enemy->kill();
@@ -290,7 +321,7 @@ void Level::updateEnemies(int deltaTime)
 
 		// rayo de Elekin Man
 		glm::ivec2 boxPos, boxSize;
-		if(enemy->attackBox(boxPos, boxSize) && touchesPlayer(boxPos, boxSize))
+		if(!frozen && enemy->attackBox(boxPos, boxSize) && touchesPlayer(boxPos, boxSize))
 			hurtPlayer();
 
 		// burbujas de Cloudy
@@ -313,12 +344,13 @@ void Level::updateEnemies(int deltaTime)
 }
 
 // Trent: solo le hacen dano las explosiones de las bombas del jugador
-void Level::updateBoss(int deltaTime)
+void Level::updateBoss(int deltaTime, bool frozen)
 {
 	if(boss == NULL)
 		return;
 	glm::ivec2 playerCenter = player->hitboxPos() + player->hitboxSize() / 2;
-	boss->update(deltaTime, playerCenter, !player->isDead());
+	if(!frozen || boss->isDying())
+		boss->update(deltaTime, playerCenter, !player->isDead());
 	if(!boss->isDying())
 	{
 		if(isOnFire(boss->hitboxPos(), boss->hitboxSize(), true) && boss->hit())
@@ -390,13 +422,14 @@ void Level::bossAttack(TrentAttack attack)
 }
 
 // Burbujas, esporas y bombas que caen
-void Level::updateProjectiles(int deltaTime)
+void Level::updateProjectiles(int deltaTime, bool frozen)
 {
 	int tileSize = map->getTileSize();
 	for(size_t i = 0; i < projectiles.size(); )
 	{
 		Projectile *p = projectiles[i];
-		p->update(deltaTime, map);
+		if(!frozen || p->isPopping())
+			p->update(deltaTime, map);
 		if(p->isHarmful() && touchesPlayer(p->hitboxPos(), p->hitboxSize()))
 		{
 			hurtPlayer();
@@ -449,21 +482,33 @@ bool Level::playerAtDoor() const
 {
 	int tileSize = map->getTileSize();
 	glm::ivec2 center = player->hitboxPos() + player->hitboxSize() / 2;
-	return center.x / tileSize == doorTile.x && center.y / tileSize == doorTile.y;
+	return door != NULL && center.x / tileSize == door->getTile().x && center.y / tileSize == door->getTile().y;
 }
 
 void Level::finishLevel()
 {
+	// Los power-ups permanentes pasan al siguiente nivel (armor y timer no)
+	PowerUpState &carried = Game::instance().powerUps();
+	carried.maxBombs = maxBombs;
+	carried.blastRange = blastRange;
+	carried.remote = remoteEnabled;
+	carried.speedMul = player->getSpeedMul();
+	carried.wings = player->hasWings();
+	carried.heart = player->hasHeart();
 	if(number < NUM_LEVELS)
 		Game::instance().startLevel(number + 1);
 	else
 		Game::instance().changeScene(SCENE_MENU);
 }
 
-// Centra la camara en el jugador sin salirse del mapa. Si el mapa es mas
-// pequeno que la vista en un eje, lo centra en ese eje.
-void Level::updateCamera()
+// Camara con zona muerta: el jugador se mueve libremente dentro de un
+// rectangulo centrado en la pantalla sin que la camara se mueva; al tocar su
+// borde la camara lo sigue. Siempre se mantiene dentro del mapa (si el mapa es
+// mas pequeno que la vista en un eje, se centra en ese eje).
+// snap = true centra la camara en el jugador (inicio de nivel).
+void Level::updateCamera(bool snap)
 {
+	const glm::vec2 deadHalf(VIEW_W / 6.f, VIEW_H / 6.f); // zona muerta = 1/3 de la vista
 	glm::vec2 mapPx = glm::vec2(map->getMapSize()) * float(map->getTileSize());
 	glm::vec2 viewPx(VIEW_W, VIEW_H);
 	glm::vec2 target = glm::vec2(player->hitboxPos()) + glm::vec2(player->hitboxSize()) / 2.f;
@@ -472,76 +517,133 @@ void Level::updateCamera()
 	{
 		float range = mapPx[axis] - viewPx[axis];
 		if(range <= 0.f)
-			camera[axis] = range / 2.f;
+		{
+			camera[axis] = std::floor(range / 2.f);
+			continue;
+		}
+		float cam = camera[axis];
+		if(snap)
+			cam = target[axis] - viewPx[axis] / 2.f;
 		else
-			camera[axis] = glm::clamp(target[axis] - viewPx[axis] / 2.f, 0.f, range);
-		camera[axis] = std::floor(camera[axis]);
+		{
+			float center = cam + viewPx[axis] / 2.f;
+			if(target[axis] < center - deadHalf[axis])
+				cam = target[axis] + deadHalf[axis] - viewPx[axis] / 2.f;
+			else if(target[axis] > center + deadHalf[axis])
+				cam = target[axis] - deadHalf[axis] - viewPx[axis] / 2.f;
+		}
+		camera[axis] = std::floor(glm::clamp(cam, 0.f, range));
 	}
 }
 
-// Lee los enemigos del nivel. Formato (una linea por enemigo):
-//   tipo columna fila direccion
-// tipo = 0-8 (ver Enemy.h) o 9 para el jefe Trent, direccion = -1 izquierda / 1 derecha.
-// La posicion es el tile donde estan los pies del enemigo (Trent ocupa 2x2 tiles
-// hacia abajo y a la derecha desde ahi).
-// Las lineas que empiezan por # son comentarios.
-// Una linea "WATERFALL columna filaCabeza filaFinal" marca una cascada: la cabeza
-// esta en (columna, filaCabeza) y el agua llega hasta filaFinal.
-// Una linea "DOOR columna fila" indica el tile de la puerta de salida. Si un
-// nivel no tiene puerta, se supera al eliminar a todos los enemigos.
-void Level::loadEnemies(const string &enemiesFile)
+// Lee las entidades del nivel (levels/Stage1-N_entities.txt). Una por linea:
+//   kind col row [args...]
+// Las lineas vacias y las que empiezan por # se ignoran. Un fichero que falta
+// significa que no hay entidades. Un error lanza runtime_error con fichero y linea.
+//   enemy col row type dir     type 0-8 (ver Enemy.h), dir -1 izquierda / 1 derecha.
+//                              La posicion es el tile donde estan los pies (los
+//                              enemigos altos, Elekin Man, ocupan hacia arriba)
+//   boss col row               el jefe Trent (2x2 tiles hacia abajo y a la derecha)
+//   door col row               puerta de salida (maximo una). Sin puerta, el nivel
+//                              se supera al eliminar a todos los enemigos
+//   waterfall col headRow bottomRow   la cabeza esta en (col, headRow) y el agua
+//                              llega hasta bottomRow
+//   item col row type          power-up escondido bajo el arbusto de ese tile
+//                              (bombup fireup speedup remote armor fullfire heart timer wings)
+void Level::loadEntities(const string &entitiesFile)
 {
-	ifstream fin(enemiesFile.c_str());
+	ifstream fin(entitiesFile.c_str());
 	if(!fin.is_open())
 		return;
+	int tileSize = map->getTileSize();
+	glm::ivec2 mapSize = map->getMapSize();
 	string line;
+	int lineNumber = 0;
 	while(getline(fin, line))
 	{
-		if(line.empty() || line[0] == '#')
-			continue;
+		lineNumber++;
+		size_t comment = line.find('#');
+		if(comment != string::npos)
+			line.erase(comment);
 		stringstream ss(line);
-		if(line.compare(0, 9, "WATERFALL") == 0)
+		string kind;
+		if(!(ss >> kind))
+			continue;
+		string where = entitiesFile + ":" + to_string(lineNumber) + ": ";
+		int col, row;
+		if(!(ss >> col >> row))
+			throw runtime_error(where + "expected 'col row' after '" + kind + "'");
+		if(col < 0 || col >= mapSize.x || row < 0 || row >= mapSize.y)
+			throw runtime_error(where + "tile (" + to_string(col) + ", " + to_string(row) + ") is outside the map");
+
+		if(kind == "enemy")
 		{
-			ss.ignore(9);
-			Waterfall w;
-			if(ss >> w.head.x >> w.head.y >> w.bottomRow)
-			{
-				w.nextRow = w.bottomRow;
-				w.timer = 0;
-				w.bRaising = false;
-				waterfalls.push_back(w);
-			}
-			continue;
+			int type, dir;
+			if(!(ss >> type >> dir) || type < 0 || type >= NUM_ENEMY_TYPES || (dir != -1 && dir != 1))
+				throw runtime_error(where + "enemy needs 'type dir' (type 0-" + to_string(NUM_ENEMY_TYPES - 1) + ", dir -1 or 1)");
+			// los enemigos altos (Elekin Man) se colocan con los pies en el tile indicado
+			int height = (type == ELEKIN) ? 2 * tileSize : tileSize;
+			addEnemy(type, glm::ivec2(col * tileSize, (row + 1) * tileSize - height), dir);
 		}
-		if(line.compare(0, 4, "DOOR") == 0)
-		{
-			ss.ignore(4);
-			if(ss >> doorTile.x >> doorTile.y)
-				bHasDoor = true;
-			continue;
-		}
-		int type, col, row, dir;
-		if(!(ss >> type >> col >> row >> dir) || type < 0 || type > TRENT_TYPE)
-			continue;
-		int tileSize = map->getTileSize();
-		if(type == TRENT_TYPE)
+		else if(kind == "boss")
 		{
 			if(boss != NULL)
-				continue;
+				throw runtime_error(where + "more than one boss");
 			boss = new Trent();
 			boss->init(glm::ivec2(0, 0), &enemySheet, Game::instance().getTexProgram());
 			boss->setTileMap(map);
 			boss->setPosition(glm::ivec2(col, row) * tileSize);
-			continue;
 		}
-		// los enemigos altos (Elekin Man) se colocan con los pies en el tile indicado
-		int height = (type == ELEKIN) ? 2 * tileSize : tileSize;
-		addEnemy(type, glm::ivec2(col * tileSize, (row + 1) * tileSize - height), dir);
+		else if(kind == "door")
+		{
+			if(door != NULL)
+				throw runtime_error(where + "more than one door");
+			door = new Door();
+			door->init(glm::ivec2(col, row), map, &doorSheet, Game::instance().getTexProgram());
+		}
+		else if(kind == "waterfall")
+		{
+			Waterfall w;
+			w.head = glm::ivec2(col, row);
+			if(!(ss >> w.bottomRow) || w.bottomRow < row || w.bottomRow >= mapSize.y)
+				throw runtime_error(where + "waterfall needs 'col headRow bottomRow' with bottomRow >= headRow, inside the map");
+			w.nextRow = w.bottomRow;
+			w.endTile = map->getTile(col, w.bottomRow);
+			w.timer = 0;
+			w.bRaising = false;
+			waterfalls.push_back(w);
+		}
+		else if(kind == "item")
+		{
+			string name;
+			PowerUpType type;
+			if(!(ss >> name) || !parsePowerUp(name, &type))
+				throw runtime_error(where + "item needs a type: bombup fireup speedup remote armor fullfire heart timer wings");
+			if(!map->isBush(col, row))
+			{
+				cerr << where << "warning: no bush at (" << col << ", " << row << "), item ignored" << endl;
+				continue;
+			}
+			itemUnderBush[row * mapSize.x + col] = type;
+		}
+		else
+			throw runtime_error(where + "unknown entity '" + kind + "'");
 	}
 }
+
 //TODO Debug only. Remove later.
 void Level::keyPressed(int key)
 {
+	// D: con el mando a distancia, detona la bomba del jugador mas antigua
+	if(key == GLFW_KEY_D && remoteEnabled && state == LEVEL_PLAYING && !player->isDead())
+	{
+		for(size_t i = 0; i < bombs.size(); i++)
+			if(!bombs[i]->isEnemyBomb())
+			{
+				bombs[i]->detonate();
+				break;
+			}
+	}
 	if(key == GLFW_KEY_H)
 		player->setHeart(!player->hasHeart());
 	if(key == GLFW_KEY_B)
@@ -632,6 +734,14 @@ void Level::explodeBomb(int index)
 		for(int i = 1; i <= range; i++)
 		{
 			glm::ivec2 t = tile + dirs[d] * i;
+			if(map->isBush(t.x, t.y))
+			{
+				destroyBush(t); // ahora es cielo, asi que se puede poner fuego encima
+				addExplosion(t, ends[d], fromEnemy);
+				break; // el arbusto corta el brazo
+			}
+			if(isClosedDoorTile(t))
+				break; // la puerta cerrada es rigida: el fuego no la pasa
 			if(map->isWall(t.x, t.y))
 			{
 				hitWaterfall(t); // la cabeza de una cascada se levanta
@@ -645,6 +755,79 @@ void Level::explodeBomb(int index)
 			}
 			addExplosion(t, (i == range) ? ends[d] : mid, fromEnemy);
 		}
+	}
+}
+
+bool Level::isClosedDoorTile(const glm::ivec2 &tile) const
+{
+	return door != NULL && !door->isOpen() && door->getTile() == tile;
+}
+
+// El arbusto pasa a ser cielo y, si escondia un power-up, aparece en su tile
+void Level::destroyBush(const glm::ivec2 &tile)
+{
+	map->setTile(tile.x, tile.y, map->getBlankTile());
+	std::map<int, PowerUpType>::iterator it = itemUnderBush.find(tile.y * map->getMapSize().x + tile.x);
+	if(it == itemUnderBush.end())
+		return;
+	Pickup *pickup = new Pickup();
+	pickup->init(it->second, tile, map->getTileSize(), &powerUpSheet, Game::instance().getTexProgram());
+	pickups.push_back(pickup);
+	itemUnderBush.erase(it);
+}
+
+// El jugador recoge los power-ups que toca
+void Level::updatePickups()
+{
+	if(player->isDead())
+		return;
+	glm::ivec2 pp = player->hitboxPos(), ps = player->hitboxSize();
+	for(size_t i = 0; i < pickups.size(); )
+	{
+		glm::ivec2 ip = pickups[i]->hitboxPos(), is = pickups[i]->hitboxSize();
+		if(pp.x < ip.x + is.x && pp.x + ps.x > ip.x && pp.y < ip.y + is.y && pp.y + ps.y > ip.y)
+		{
+			applyPowerUp(pickups[i]->getType());
+			delete pickups[i];
+			pickups.erase(pickups.begin() + i);
+		}
+		else
+			i++;
+	}
+}
+
+void Level::applyPowerUp(PowerUpType type)
+{
+	switch(type)
+	{
+	case PU_BOMB_UP:
+		maxBombs = std::min(maxBombs + 1, MAX_BOMBS_LIMIT);
+		break;
+	case PU_FIRE_UP:
+		blastRange = std::min(blastRange + 1, MAX_BLAST_RANGE);
+		break;
+	case PU_FULL_FIRE:
+		blastRange = MAX_BLAST_RANGE;
+		break;
+	case PU_SPEED_UP:
+		player->addSpeed();
+		break;
+	case PU_REMOTE:
+		remoteEnabled = true;
+		break;
+	case PU_ARMOR:
+		player->startInvulnerable(ARMOR_TIME);
+		break;
+	case PU_HEART:
+		if(!player->hasHeart()) // no se acumulan
+			player->setHeart(true);
+		break;
+	case PU_TIMER:
+		freezeTime = FREEZE_TIME;
+		break;
+	case PU_WINGS:
+		player->setWings(true);
+		break;
 	}
 }
 
@@ -668,19 +851,21 @@ void Level::hitWaterfall(const glm::ivec2 &tile)
 }
 
 // El agua se retira de abajo arriba: cada WATERFALL_STEP ms la fila mas baja
-// pasa a ser cielo (no solido) hasta llegar a la cabeza.
+// pasa a ser cielo (no solido) y el tile final de la cascada se pone una fila
+// mas arriba. Se para cuando solo queda un tile de agua bajo la cabeza.
 void Level::updateWaterfalls(int deltaTime)
 {
 	for(size_t i = 0; i < waterfalls.size(); i++)
 	{
 		Waterfall &w = waterfalls[i];
-		if(!w.bRaising || w.nextRow <= w.head.y)
+		if(!w.bRaising || w.nextRow <= w.head.y + 1)
 			continue;
 		w.timer -= deltaTime;
 		if(w.timer > 0)
 			continue;
 		map->setTile(w.head.x, w.nextRow, map->getBlankTile());
 		w.nextRow--;
+		map->setTile(w.head.x, w.nextRow, w.endTile);
 		w.timer = WATERFALL_STEP;
 	}
 }
@@ -733,6 +918,10 @@ void Level::render(int windowWidth, int windowHeight)
 	texProgram.setUniformMatrix4f("modelview", modelview);
 	texProgram.setUniform2f("texCoordDispl", 0.f, 0.f);
 	map->render();
+	if(door != NULL)
+		door->render();
+	for(size_t i = 0; i < pickups.size(); i++)
+		pickups[i]->render();
 	for(size_t i = 0; i < bombs.size(); i++)
 		bombs[i]->render();
 	if(boss != NULL)

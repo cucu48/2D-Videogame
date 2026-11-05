@@ -1,4 +1,5 @@
 #include <cmath>
+#include <algorithm>
 #include <iostream>
 #include <GL/glew.h>
 #include "Player.h"
@@ -9,6 +10,9 @@
 
 #define JUMP_ANGLE_STEP 4
 #define JUMP_HEIGHT 96
+#define FLAP_HEIGHT 40   // wings: how high each flap lifts the player
+#define MAX_SPEED_MUL 2.f
+#define SPEED_STEP 0.2f
 #define FALL_STEP 4
 #define MOVE_SPEED 2.5f // px por frame, igual andando que saltando (admite decimales)
 #define HITBOX_OFFSET_X 4
@@ -63,6 +67,10 @@ void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
 	bOnGround = false;
 	bDead = false;
 	bHeart = false;
+	bWings = false;
+	upWasPressed = false;
+	curJumpHeight = JUMP_HEIGHT;
+	speedMul = 1.f;
 	bDancing = false;
 	moveAccum = 0.f;
 	invulnerableTime = 0;
@@ -158,7 +166,7 @@ void Player::update(int deltaTime)
     glm::ivec2 hbSize(HITBOX_WIDTH, HITBOX_HEIGHT);
     bool bInAir = bJumping || !bOnGround;
     // velocidad con decimales: se acumula la parte fraccionaria (2.5 -> 2, 3, 2, 3...)
-    moveAccum += MOVE_SPEED;
+    moveAccum += MOVE_SPEED * speedMul;
     int speed = int(moveAccum);
     moveAccum -= speed;
     
@@ -197,6 +205,19 @@ void Player::update(int deltaTime)
             sprite->changeAnimation(STAND_RIGHT);
     }
     
+    // --- ALAS: en el aire, cada nueva pulsacion de UP da un aleteo ---
+    bool upNow = Game::instance().getKey(GLFW_KEY_UP);
+    if(bWings && upNow && !upWasPressed && !bOnGround)
+    {
+        bJumping = true;
+        bRising = true;
+        jumpAngle = 0;
+        startY = posPlayer.y;
+        curJumpHeight = FLAP_HEIGHT;
+        Audio::instance().playSound(SFX_JUMP);
+    }
+    upWasPressed = upNow;
+
     // --- MOVIMIENTO VERTICAL ---
     if(bRising)
     {
@@ -204,11 +225,11 @@ void Player::update(int deltaTime)
         jumpAngle += JUMP_ANGLE_STEP;
         if(jumpAngle >= 90)
         {
-            posPlayer.y = startY - JUMP_HEIGHT;
+            posPlayer.y = startY - curJumpHeight;
             bRising = false; // a partir de aqui cae con la gravedad normal
         }
         else
-            posPlayer.y = int(startY - JUMP_HEIGHT * sin(3.14159f * jumpAngle / 180.f));
+            posPlayer.y = int(startY - curJumpHeight * sin(3.14159f * jumpAngle / 180.f));
 
         // techo: si la cabeza entra en un tile solido, se recoloca debajo y empieza a caer
         int freeY = posPlayer.y;
@@ -241,6 +262,7 @@ void Player::update(int deltaTime)
                 jumpCooldown = JUMP_COOLDOWN;
                 bJumping = true;
                 Audio::instance().playSound(SFX_JUMP);
+                curJumpHeight = JUMP_HEIGHT;
                 bRising = true;
                 bOnGround = false;
                 jumpAngle = 0;
@@ -346,7 +368,20 @@ void Player::respawn(const glm::vec2 &pos)
 
 void Player::startInvulnerable()
 {
-	invulnerableTime = INVULNERABLE_TIME;
+	startInvulnerable(INVULNERABLE_TIME);
+}
+
+void Player::startInvulnerable(int ms)
+{
+	if(ms > invulnerableTime)
+		invulnerableTime = ms;
+}
+
+void Player::addSpeed()
+{
+	speedMul = std::min(speedMul + SPEED_STEP, MAX_SPEED_MUL);
+	if(speedMul > MAX_SPEED_MUL - 0.01f)
+		speedMul = MAX_SPEED_MUL; // float steps could stop just under 2.0
 }
 
 void Player::render()

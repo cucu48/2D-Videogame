@@ -33,6 +33,7 @@ public:
 	bool isDead() const { return bDead; }
 	bool isInvulnerable() const { return invulnerableTime > 0; }
 	void startInvulnerable();   // blinking immunity, also used after respawning
+	void startInvulnerable(int ms); // idem for ms milliseconds (armored jacket); never shortens a longer one
 
 	// Baile (tecla B): solo en el suelo; se corta al moverse, saltar o morir
 	void toggleDance();
@@ -42,6 +43,15 @@ public:
 	// Heart power-up: absorbs the next hit
 	bool hasHeart() const { return bHeart; }
 	void setHeart(bool heart) { bHeart = heart; }
+
+	// Speed Up power-up: 1x up to 2x, +0.2x each
+	float getSpeedMul() const { return speedMul; }
+	void setSpeedMul(float mul) { speedMul = mul; }
+	void addSpeed();
+
+	// Wings power-up: pressing UP in the air flaps, no floor needed
+	bool hasWings() const { return bWings; }
+	void setWings(bool wings) { bWings = wings; }
 	
 private:
 	bool nudgeHorizontal();
@@ -52,6 +62,10 @@ private:
 	bool bOnGround;
 	bool bDead;
 	bool bHeart;
+	bool bWings;
+	bool upWasPressed;    // UP key last frame, to detect a new press (flap)
+	int curJumpHeight;    // JUMP_HEIGHT on the ground, FLAP_HEIGHT when flapping
+	float speedMul;
 	bool bDancing;
 	float moveAccum;      // parte fraccionaria de MOVE_SPEED pendiente de aplicar
 	int invulnerableTime; // tras reaparecer, un rato sin poder morir (parpadea)

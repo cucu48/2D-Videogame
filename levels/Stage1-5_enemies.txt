@@ -1,3 +1,0 @@
-# Enemigos de Stage1-5: el jefe Trent
-# tipo columna fila direccion (Trent ocupa 2x2 tiles desde aqui)
-9 6 1 1
