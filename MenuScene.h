@@ -8,10 +8,6 @@
 #include "TextMenu.h"
 
 
-// Main menu: background, title and the buttons (in Catalan): "Continuar" (only
-// when a game was left from the pause menu), "Jugar" / "Nova partida",
-// "Instruccions", "Credits" and "Sortir".
-
 
 class MenuScene : public Scene
 {
@@ -34,9 +30,9 @@ private:
 	Texture backgroundTex, titleTex;
 	Sprite *background, *title;
 	TextMenu buttons;
-	bool bContinue;                 // the first button is "Continuar"
+	bool bContinue;
 
 };
 
 
-#endif // _MENU_SCENE_INCLUDE
+#endif

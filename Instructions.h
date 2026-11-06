@@ -7,10 +7,6 @@
 #include "Text.h"
 
 
-// Texto de las instrucciones (en catalan): objetivo, controles, consejos y
-// trucos. Lo usan la pantalla de instrucciones del menu y la de la pausa.
-// Las lineas estan en Instructions.cpp.
-
 
 class Instructions
 {
@@ -19,7 +15,6 @@ public:
 	Instructions();
 
 	bool init();
-	// Pinta el titulo y el texto centrados en centerX, empezando en la linea base top
 	void render(const glm::mat4 &projection, float centerX, float top);
 
 private:
@@ -33,4 +28,4 @@ private:
 };
 
 
-#endif // _INSTRUCTIONS_INCLUDE
+#endif

@@ -5,8 +5,6 @@
 #include "Credits.h"
 
 
-// Lineas de los creditos, de la primera en salir a la ultima. size 0 = hueco.
-// En catalan. La fuente solo tiene ASCII: sin acentos (y la ela geminada con punto).
 struct CreditLine
 {
 	const char *text;
@@ -60,10 +58,9 @@ static const CreditLine CREDITS[] = {
 	{ "GRACIES PER JUGAR", TITLE, GOLD },
 };
 #define NUM_CREDITS int(sizeof(CREDITS) / sizeof(CREDITS[0]))
-#define CREDITS_GAP 6              // px entre lineas (los huecos ocupan BODY + CREDITS_GAP)
+#define CREDITS_GAP 6
 
 
-// Distancia (en px) de cada linea a la primera
 static void lineOffsets(float offset[NUM_CREDITS])
 {
 	float acc = 0.f;
@@ -86,7 +83,6 @@ bool Credits::init()
 	return bText;
 }
 
-// Lo que tienen que subir en total hasta que la ultima linea llega a lastY
 float Credits::totalScroll(const CreditsLayout &layout) const
 {
 	float offset[NUM_CREDITS];
@@ -105,7 +101,6 @@ void Credits::render(const glm::mat4 &projection, int elapsed, const CreditsLayo
 		return;
 	text.setProjection(projection);
 
-	// se leen de arriba a abajo y suben; la ultima se para en lastY y se queda
 	float offset[NUM_CREDITS];
 	lineOffsets(offset);
 	float scroll = std::min(elapsed * layout.speed, totalScroll(layout));
@@ -116,7 +111,6 @@ void Credits::render(const glm::mat4 &projection, int elapsed, const CreditsLayo
 		float base = std::floor(layout.bottom - scroll + offset[i]);
 		if(line.size == 0 || base > layout.bottom + line.size || base < 0.f)
 			continue;
-		// se apagan al llegar arriba
 		float alpha = (base - line.size - layout.fadeTo) / (layout.fadeFrom - layout.fadeTo);
 		alpha = std::max(0.f, std::min(1.f, alpha));
 		if(alpha <= 0.f)

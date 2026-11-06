@@ -7,14 +7,12 @@
 #include "Game.h"
 
 
-// The menu is drawn on a 160x144 virtual screen (the size of the art). The
-// buttons use twice that resolution so the text looks like in the levels.
 #define VIRTUAL_WIDTH 160
 #define VIRTUAL_HEIGHT 144
 #define TEXT_SCALE 2
 #define BUTTON_SIZE 14
 #define BUTTON_SPACING 18.f
-#define BUTTONS_BOTTOM 278.f    // baseline of the last button (in text pixels)
+#define BUTTONS_BOTTOM 278.f
 
 
 static Sprite *createImage(Texture &tex, const char *file, ShaderProgram &program)
@@ -53,7 +51,6 @@ void MenuScene::onEnter()
 	Audio::instance().setMusicDucked(false);
 	Audio::instance().setMusicHurry(false);
 	Audio::instance().playMusic(MUSIC_TITLE, true);
-	// With a game left from the pause menu, it can be continued
 	bContinue = Game::instance().hasSuspendedGame();
 	std::vector<std::string> items;
 	if(bContinue)
@@ -68,7 +65,7 @@ void MenuScene::onEnter()
 	buttons.setLayout(VIRTUAL_WIDTH * TEXT_SCALE / 2.f, first, BUTTON_SIZE, BUTTON_SPACING);
 }
 
-void MenuScene::update(int /*deltaTime*/)
+void MenuScene::update(int )
 {
 }
 
@@ -94,12 +91,11 @@ void MenuScene::choose(int item)
 		return;
 	Audio::instance().playSound(SFX_SELECT);
 	if(!bContinue)
-		item++;   // without "Continuar" the buttons start at "Jugar"
+		item++;
 	if(item == 0)
 		Game::instance().resumeSuspendedGame();
 	else if(item == 1)
 	{
-		// "Nova partida" (habia una partida en pausa): se empieza sin bongs
 		if(bContinue)
 			Game::instance().resetBongs();
 		Game::instance().changeScene(SCENE_LEVEL_SELECT);

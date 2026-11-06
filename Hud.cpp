@@ -6,15 +6,14 @@
 #include "Game.h"
 
 
-#define TILE 16                 // one 8x8 tile of HUD.png at 2x
-#define TEXT_SIZE 12            // glyph height in virtual pixels
+#define TILE 16
+#define TEXT_SIZE 12
 #define TEXT_COLOR glm::vec4(0.f, 0.f, 0.f, 1.f)
 #define BLINK_COLOR glm::vec4(0.9f, 0.05f, 0.05f, 1.f)
-#define BLINK_TIME 900          // ms que parpadea un valor al cambiar
+#define BLINK_TIME 900
 #define BLINK_PERIOD 150
-#define HURRY_SECONDS 30        // a partir de aqui el tiempo sale en rojo (y en los 10 ultimos parpadea)
+#define HURRY_SECONDS 30
 
-// Tiles of the bar (0-based) where each value goes
 #define TIME_TILE 2
 #define HEART_TILE 7
 #define LIVES_TILE 9
@@ -55,7 +54,6 @@ void Hud::update(int deltaTime, const HudState &state)
 	bHasLast = true;
 }
 
-// Mientras parpadea, alterna entre rojo y el color normal
 glm::vec4 Hud::blinkColor(int blink) const
 {
 	if(blink > 0 && (blink / BLINK_PERIOD) % 2 == 0)
@@ -99,7 +97,6 @@ void Hud::render(const HudState &state)
 	texProgram.setUniformMatrix4f("projection", projection);
 	texProgram.setUniform4f("color", 1.0f, 1.0f, 1.0f, 1.0f);
 	hudSprite->render();
-	// el corazon parpadea al cogerlo o al perderlo
 	int heartBlink = blinkTime[BLINK_HEART];
 	bool heartVisible = state.hasHeart;
 	if(heartBlink > 0)
@@ -109,11 +106,9 @@ void Hud::render(const HudState &state)
 
 	text.setProjection(projection);
 
-	// M:SS, one glyph per tile so it always fits in 4 tiles
 	int seconds = std::max(0, std::min(state.secondsLeft, 9 * 60 + 59));
 	char timeStr[16];
 	snprintf(timeStr, sizeof(timeStr), "%d:%02d", seconds / 60, seconds % 60);
-	// poco tiempo: en rojo, y los 10 ultimos segundos parpadeando
 	glm::vec4 timeColor = TEXT_COLOR;
 	if(state.secondsLeft <= HURRY_SECONDS)
 		timeColor = BLINK_COLOR;
@@ -131,7 +126,6 @@ void Hud::render(const HudState &state)
 void Hud::renderCell(char c, int cellX, const glm::vec4 &color)
 {
 	int x = cellX + (TILE - text.charAdvance(c, TEXT_SIZE)) / 2;
-	// Text draws from the baseline: put it where the bitmap ends up centered vertically in the tile
 	int y = (TILE - text.charHeight(c, TEXT_SIZE)) / 2 + text.charAscent(c, TEXT_SIZE);
 	text.render(string(1, c), glm::vec2(float(x), float(y)), TEXT_SIZE, color);
 }

@@ -35,7 +35,7 @@ void Door::init(const glm::ivec2 &tile, TileMap *tileMap, Texture *spritesheet, 
 	sprite->changeAnimation(DOOR_CLOSED);
 	sprite->setPosition(glm::vec2(float(tile.x * tileSize), float(tile.y * tileSize)));
 
-	map->setBlocked(tile.x, tile.y, true); // rigid while closed
+	map->setBlocked(tile.x, tile.y, true);
 }
 
 void Door::open()

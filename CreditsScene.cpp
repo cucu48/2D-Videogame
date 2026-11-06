@@ -7,13 +7,12 @@
 #include "Game.h"
 
 
-// Como el menu: fondo en 160x144 y texto al doble de resolucion
 #define VIRTUAL_WIDTH 160
 #define VIRTUAL_HEIGHT 144
 #define TEXT_SCALE 2
-#define DIM 0.4f                // el fondo del menu se pinta oscurecido (multiplica el color)
-#define START_DELAY 600         // ms antes de que empiecen a subir
-#define SKIP_TIME 800           // ms antes de poder salir (para no saltarlos sin querer)
+#define DIM 0.4f
+#define START_DELAY 600
+#define SKIP_TIME 800
 #define BLINK_TIME 500
 
 
@@ -25,8 +24,6 @@ static Sprite *createImage(Texture &tex, const char *file, ShaderProgram &progra
 	return Sprite::createSprite(glm::vec2(tex.width(), tex.height()), glm::vec2(1.f, 1.f), &tex, &program);
 }
 
-// Nacen por debajo del borde de abajo y se apagan al llegar arriba; la ultima
-// linea ("Gracies per jugar") se queda en el centro
 static CreditsLayout layout()
 {
 	CreditsLayout l;

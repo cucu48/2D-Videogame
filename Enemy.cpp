@@ -4,32 +4,31 @@
 #include "Enemy.h"
 
 
-// images/enemies.png mide 256x512. Celdas de 32x32 salvo Elekin Man (32x64).
 #define SHEET_W 256.f
 #define SHEET_H 512.f
 #define LEAF_ROW_Y 224
 #define ELEKIN_ROW_Y 256
 
-#define SLOW_SPEED 0.5f       // px por frame ("se mueve despacio")
+#define SLOW_SPEED 0.5f
 #define NORMAL_SPEED 1.f
-#define DASH_SPEED 4          // embestida de Eyti
-#define HOP_RISE_SPEED 1.5f   // Springchicken subiendo
+#define DASH_SPEED 4
+#define HOP_RISE_SPEED 1.5f
 #define HOP_FORWARD_SPEED 0.75f
 #define LEAF_SPEED 0.8f
 #define ENEMY_FALL_STEP 6
 #define JUMP_INTERVAL 1500
 #define JUMP_VELOCITY -5.f
 #define GRAVITY 0.3f
-#define FLY_AMPLITUDE 8.f     // Cloudy: cuanto ondula arriba y abajo
+#define FLY_AMPLITUDE 8.f
 
-#define STEP_PAUSE 500        // Jacky: pausa cada 2 tiles
-#define TURN_PAUSE 600        // pausa antes de darse la vuelta
-#define ALERT_TIME 400        // Eyti: pausa antes de embestir
-#define DASH_REST 700         // Eyti: pausa despues de embestir
-#define HOP_REST 300          // Springchicken: pausa al aterrizar
-#define SHOT_COOLDOWN 2000    // Cloudy: tiempo entre burbujas
+#define STEP_PAUSE 500
+#define TURN_PAUSE 600
+#define ALERT_TIME 400
+#define DASH_REST 700
+#define HOP_REST 300
+#define SHOT_COOLDOWN 2000
 #define SHOT_RANGE_TILES 4
-#define BOLT_TIME 3000        // Elekin Man: duracion del rayo
+#define BOLT_TIME 3000
 #define BOLT_COOLDOWN 1500
 #define BOLT_TILES 2
 #define LEAF_LIFETIME 10000
@@ -83,7 +82,6 @@ void Enemy::init(int type, const glm::ivec2 &tileMapPos, Texture *spritesheet, S
 	bDying = false;
 	dyingTime = 0;
 
-	// columnas: 0-1 izquierda, 2-3 derecha, 4-5 morir (Elekin: 0-1 flotar, 2 cargar, 3-4 morir, 5-6 rayo)
 	glm::vec2 cell(32.f / SHEET_W, 32.f / SHEET_H);
 	float rowY = type * 32.f / SHEET_H;
 	size = glm::ivec2(32, 32);
@@ -112,7 +110,6 @@ void Enemy::init(int type, const glm::ivec2 &tileMapPos, Texture *spritesheet, S
 		sprite->addKeyframe(DIE, glm::vec2(3.f * cell.x, rowY));
 		sprite->addKeyframe(DIE, glm::vec2(4.f * cell.x, rowY));
 
-		// rayo: 32x64 (2 tiles), parpadea entre 2 frames
 		boltSprite = Sprite::createSprite(glm::ivec2(32, 64), cell, spritesheet, &shaderProgram);
 		boltSprite->setNumberAnimations(1);
 		boltSprite->setAnimationSpeed(0, 12);
@@ -128,7 +125,6 @@ void Enemy::init(int type, const glm::ivec2 &tileMapPos, Texture *spritesheet, S
 		sprite->setAnimationSpeed(WALK_RIGHT, 4);
 		sprite->addKeyframe(WALK_RIGHT, glm::vec2(2.f * cell.x, rowY));
 		sprite->addKeyframe(WALK_RIGHT, glm::vec2(3.f * cell.x, rowY));
-		// desaparecer: 2 frames y despues ya no se dibuja
 		sprite->setAnimationSpeed(DIE, 1000 * 2 / DYING_TIME);
 		sprite->addKeyframe(DIE, glm::vec2(4.f * cell.x, rowY));
 		sprite->addKeyframe(DIE, glm::vec2(5.f * cell.x, rowY));
@@ -250,7 +246,6 @@ bool Enemy::moveX(int dx)
 	return !wall;
 }
 
-// gravedad: si no tiene suelo debajo, cae. Devuelve true si esta en el suelo
 bool Enemy::fall()
 {
 	glm::ivec2 hb = hitboxPos();
@@ -261,7 +256,6 @@ bool Enemy::fall()
 	return bOnGround;
 }
 
-// true si hay suelo justo delante de los pies (para no caerse por los bordes)
 bool Enemy::groundAhead() const
 {
 	int tileSize = map->getTileSize();
@@ -271,7 +265,6 @@ bool Enemy::groundAhead() const
 	return map->isSolid(int(floor(float(frontX) / tileSize)), int(floor(float(feetY) / tileSize)));
 }
 
-// El jugador esta en la misma fila y no hay paredes ni bombas en medio
 bool Enemy::seesPlayer(const glm::ivec2 &playerCenter) const
 {
 	int tileSize = map->getTileSize();
@@ -286,8 +279,6 @@ bool Enemy::seesPlayer(const glm::ivec2 &playerCenter) const
 	return true;
 }
 
-// Jacky: anda despacio y se para cada 2 tiles. En un borde, pared o bomba se
-// para un momento y se da la vuelta.
 void Enemy::updateJacky(int deltaTime)
 {
 	if(!fall())
@@ -327,8 +318,6 @@ void Enemy::updateJacky(int deltaTime)
 	}
 }
 
-// Eyti: anda despacio y se da la vuelta (con pausa) en bordes, paredes y
-// bombas. Si ve al jugador en su fila, se para y embiste hacia el.
 void Enemy::updateEyti(int deltaTime, const glm::ivec2 &playerCenter, bool playerAlive)
 {
 	if(!fall())
@@ -337,7 +326,6 @@ void Enemy::updateEyti(int deltaTime, const glm::ivec2 &playerCenter, bool playe
 	{
 	case S_WALK:
 	{
-		// solo embiste si el jugador esta delante (en la direccion en la que mira)
 		glm::ivec2 center = hitboxPos() + hitboxSize() / 2;
 		bool inFront = (direction > 0) ? playerCenter.x > center.x : playerCenter.x < center.x;
 		if(playerAlive && inFront && seesPlayer(playerCenter))
@@ -381,7 +369,6 @@ void Enemy::updateEyti(int deltaTime, const glm::ivec2 &playerCenter, bool playe
 	}
 }
 
-// Tipos 2-4: andan y cada cierto tiempo dan un saltito
 void Enemy::updateJumper(int deltaTime)
 {
 	timer -= deltaTime;
@@ -401,7 +388,6 @@ void Enemy::updateJumper(int deltaTime)
 		return;
 	}
 
-	// en el aire: avanza y aplica la gravedad
 	if(!moveX(direction))
 		turnAround();
 	int offsetY = hitboxPos().y - posEnemy.y;
@@ -424,9 +410,6 @@ void Enemy::updateJumper(int deltaTime)
 	}
 }
 
-// Cloudy: vuela en horizontal ondulando arriba y abajo (sin gravedad) y se da
-// la vuelta al chocar con una pared o una bomba. Si el jugador esta cerca le
-// dispara burbujas.
 void Enemy::updateCloudy(int deltaTime, const glm::ivec2 &playerCenter, bool playerAlive)
 {
 	flyTime += deltaTime;
@@ -460,8 +443,6 @@ bool Enemy::takeShot(glm::vec2 &pos, glm::vec2 &dir)
 	return true;
 }
 
-// Springchicken: sube un tile, avanza un tile y cae. Se da la vuelta al
-// chocar con una pared o una bomba, o en el borde de su trozo de suelo.
 void Enemy::updateSpringchicken(int deltaTime)
 {
 	int tileSize = map->getTileSize();
@@ -482,7 +463,7 @@ void Enemy::updateSpringchicken(int deltaTime)
 			posEnemy.y -= 1;
 			if(map->collisionBox(hitboxPos(), hitboxSize()))
 			{
-				posEnemy.y += 1; // techo: avanza desde aqui
+				posEnemy.y += 1;
 				walked = tileSize;
 			}
 			else
@@ -500,7 +481,6 @@ void Enemy::updateSpringchicken(int deltaTime)
 		int n = step(HOP_FORWARD_SPEED);
 		for(int i = 0; i < n && state == S_FORWARD; i++)
 		{
-			// no se sale del trozo de suelo donde estaba: si delante no hay suelo, se da la vuelta
 			glm::ivec2 hb = hitboxPos();
 			int frontX = (direction > 0) ? hb.x + hitboxSize().x : hb.x - 1;
 			if(!map->isSolid(frontX / tileSize, groundY / tileSize))
@@ -522,7 +502,7 @@ void Enemy::updateSpringchicken(int deltaTime)
 	default:
 		if(fall())
 		{
-			groundY = hitboxPos().y + hitboxSize().y; // primera fila de pixeles del suelo
+			groundY = hitboxPos().y + hitboxSize().y;
 
 			state = S_REST;
 			stateTime = HOP_REST;
@@ -531,8 +511,6 @@ void Enemy::updateSpringchicken(int deltaTime)
 	}
 }
 
-// Elekin Man: flota despacio a izquierda y derecha (sin gravedad). Si el
-// jugador esta justo debajo, se para y suelta un rayo de 2 tiles durante 3 s.
 void Enemy::updateElekin(int deltaTime, const glm::ivec2 &playerCenter, bool playerAlive)
 {
 	timer -= deltaTime;
@@ -571,7 +549,6 @@ bool Enemy::attackBox(glm::ivec2 &pos, glm::ivec2 &boxSize) const
 	glm::ivec2 hb = hitboxPos();
 	int centerX = hb.x + hitboxSize().x / 2;
 	int top = hb.y + hitboxSize().y;
-	// el rayo llega hasta 2 tiles o hasta la primera pared
 	int length = 0;
 	while(length < BOLT_TILES * tileSize && !map->isWall(centerX / tileSize, (top + length) / tileSize))
 		length += 4;
@@ -580,7 +557,6 @@ bool Enemy::attackBox(glm::ivec2 &pos, glm::ivec2 &boxSize) const
 	return length > 0;
 }
 
-// Leaf: persigue al jugador atravesando paredes y desaparece al cabo de un rato
 void Enemy::updateLeaf(int deltaTime, const glm::ivec2 &playerCenter)
 {
 	if((lifeTime -= deltaTime) <= 0)

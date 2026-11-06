@@ -10,16 +10,6 @@
 #include "Credits.h"
 
 
-// Final secreto: si se derrota al jefe con los 4 bongs, aparece un quinto en el
-// centro del mapa y al cogerlo se funde a esta escena. Un prado al atardecer
-// con Bomberman y Eyti sentados en la hierba, frente a frente, fumando. El fondo y los efectos
-// salen de scripts/make_secret_scene.py; aqui se anima el bong que comparten
-// (burbujas y brasa al dar la calada) y las bocanadas de humo.
-// La musica (MUSIC_SECRET) la pone el nivel durante el fundido, al tercer
-// segundo, y sigue sonando aqui. Espacio o enter vuelven al menu.
-// Tambien hace de creditos (en catalan): salen de detras de las colinas y
-// suben por el cielo (se pintan entre secret_bg.png y secret_fg.png).
-
 
 class SecretScene : public Scene
 {
@@ -42,14 +32,14 @@ private:
 	Texture bgTex, fgTex, fxTex, promptTex;
 	TexturedQuad *bgQuad, *fgQuad, *promptQuad;
 	Credits credits;
-	TexturedQuad *bongQuads[2][3];   // [normal, espejo][reposo, calada A, calada B]
-	TexturedQuad *smokeQuads[4];     // de pequena a grande
+	TexturedQuad *bongQuads[2][3];
+	TexturedQuad *smokeQuads[4];
 	DitherFade fade;
 	int time;
-	int leaveTime;                   // -1 mientras no se sale; si no, ms desde que se pulso
+	int leaveTime;
 	bool bInScene;
 
 };
 
 
-#endif // _SECRET_SCENE_INCLUDE
+#endif

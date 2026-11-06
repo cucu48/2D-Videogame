@@ -21,8 +21,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
-	// The cursor comes in window coordinates, Game works in framebuffer pixels
-	// (they differ on scaled displays)
 	int winWidth, winHeight, fbWidth, fbHeight;
 	glfwGetWindowSize(window, &winWidth, &winHeight);
 	glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
@@ -49,11 +47,9 @@ int main(void)
 	double timePerFrame = 1.f / TARGET_FRAMERATE, timePreviousFrame, currentTime;
 	double accumulator = 0.0;
 
-	/* Initialize the library */
 	if (!glfwInit())
 		return -1;
 
-	/* Create a windowed mode window and its OpenGL context */
 	window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Pocket Bomberman", NULL, NULL);
 	if (!window)
 	{
@@ -61,40 +57,32 @@ int main(void)
 		return -1;
 	}
 
-	/* Set window initial position */
 	glfwSetWindowPos(window, 100, 100);
-	/* Make the window's context current */
 	glfwMakeContextCurrent(window);
-	/* Sync with the monitor so the loop doesn't burn the CPU */
 	glfwSwapInterval(1);
 
-	/* Set callbacks */
 	glfwSetKeyCallback(window, key_callback);
 	glfwSetCursorPosCallback(window, cursor_position_callback);
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-	/* Init glew to have access to GL extensions */
 	glewExperimental = GL_TRUE;
 	glewInit();
 
-	/* Init step of the game loop */
 	Game::instance().init();
 	int fbWidth, fbHeight;
 	glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
 	Game::instance().resize(fbWidth, fbHeight);
 	timePreviousFrame = glfwGetTime();
 
-	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window))
 	{
 		currentTime = glfwGetTime();
 		accumulator += currentTime - timePreviousFrame;
 		timePreviousFrame = currentTime;
-		if (accumulator > 0.25)	// avoid a burst of updates after a long pause
+		if (accumulator > 0.25)
 			accumulator = 0.25;
 
-		/* Game logic always advances in fixed 1/60 s steps */
 		while (accumulator >= timePerFrame)
 		{
 			if(!Game::instance().update(int(1000.0f * timePerFrame)))
@@ -105,7 +93,6 @@ int main(void)
 		Game::instance().render();
 		glfwSwapBuffers(window);
 
-		/* Poll for and process events */
 		glfwPollEvents();
 	}
 

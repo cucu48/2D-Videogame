@@ -71,7 +71,7 @@ int TextMenu::hover(const glm::vec2 &p)
 	for(int i = 0; i < int(items.size()); i++)
 	{
 		float base = firstBaseline + i * spacing;
-		float w = textWidth(items[i], textSize) + 24.f;   // un poco de margen a los lados
+		float w = textWidth(items[i], textSize) + 24.f;
 		if(p.y >= base - textSize - spacing * 0.25f && p.y < base + spacing * 0.25f &&
 		   std::fabs(p.x - centerX) <= w / 2.f)
 		{
@@ -99,7 +99,6 @@ void TextMenu::renderLabel(const glm::mat4 &projection, const std::string &str, 
 		return;
 	text.setProjection(projection);
 	glm::vec2 pos(std::floor(cx - textWidth(str, size) / 2.f), std::floor(baseline));
-	// contorno oscuro para que se lea sobre cualquier fondo
 	const glm::vec2 around[4] = { glm::vec2(-1.f, 0.f), glm::vec2(1.f, 0.f), glm::vec2(0.f, -1.f), glm::vec2(0.f, 1.f) };
 	for(int i = 0; i < 4; i++)
 		text.render(str, pos + around[i], size, COLOR_SHADOW);
@@ -114,7 +113,6 @@ void TextMenu::render(const glm::mat4 &projection)
 		float base = firstBaseline + i * spacing;
 		if(i == selected)
 		{
-			// el elegido en amarillo y entre flechas
 			renderLabel(projection, "> " + items[i] + " <", centerX, base, textSize, COLOR_SELECTED);
 		}
 		else

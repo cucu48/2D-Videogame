@@ -5,19 +5,16 @@
 #include "Sounds.h"
 
 
-// The selector is drawn on a 160x144 virtual screen (the size of the art)
 #define VIRTUAL_WIDTH 160
 #define VIRTUAL_HEIGHT 144
 #define BUTTON_SIZE 32
 #define DIGIT_SIZE 16
 
-// Top-left corner of the buttons painted on LevelSelector.png (level 1 to 5)
 static const glm::vec2 buttonPos[NUM_LEVELS] = {
 	glm::vec2(128, 16), glm::vec2(0, 32), glm::vec2(128, 56), glm::vec2(0, 80), glm::vec2(128, 96)
 };
 
 
-// Coleccionable de cada stage 1-4, al lado de su boton (en sombra si aun no se ha cogido)
 static const glm::vec2 bongPos[NUM_BONGS] = {
 	glm::vec2(110, 24), glm::vec2(34, 40), glm::vec2(110, 64), glm::vec2(34, 88)
 };
@@ -58,7 +55,6 @@ void LevelSelectScene::init()
 	background = Sprite::createSprite(glm::vec2(VIRTUAL_WIDTH, VIRTUAL_HEIGHT), glm::vec2(1.f, 1.f), &backgroundTex, &program);
 	indicator = Sprite::createSprite(glm::vec2(BUTTON_SIZE, BUTTON_SIZE), glm::vec2(1.f, 1.f), &indicatorTex, &program);
 
-	// NumbersOutlined.png holds the digits 0-9 in 16x16 cells, 4 per row. One animation per level number.
 	digit = Sprite::createSprite(glm::vec2(DIGIT_SIZE, DIGIT_SIZE), glm::vec2(0.25f, 0.25f), &numbersTex, &program);
 	digit->setNumberAnimations(NUM_LEVELS);
 	for(int i = 0; i < NUM_LEVELS; i++)
@@ -71,13 +67,12 @@ void LevelSelectScene::init()
 
 void LevelSelectScene::onEnter()
 {
-	// the cursor may already be over a button when the scene is entered
 	Game &game = Game::instance();
 	updateHover(game.getMouseX(), game.getMouseY());
-	Audio::instance().playMusic(MUSIC_TITLE, true); // sigue la del menu si ya sonaba
+	Audio::instance().playMusic(MUSIC_TITLE, true);
 }
 
-void LevelSelectScene::update(int /*deltaTime*/)
+void LevelSelectScene::update(int )
 {
 }
 
@@ -103,7 +98,6 @@ void LevelSelectScene::render(int windowWidth, int windowHeight)
 	}
 	program.setUniform4f("color", 1.f, 1.f, 1.f, 1.f);
 
-	// Highlight frame over the hovered button, with its number on top
 	if(hovered >= 0)
 	{
 		indicator->setPosition(buttonPos[hovered]);
@@ -116,7 +110,6 @@ void LevelSelectScene::render(int windowWidth, int windowHeight)
 
 void LevelSelectScene::keyPressed(int key)
 {
-	// Esc: vuelve al menu principal
 	if(key == GLFW_KEY_ESCAPE)
 	{
 		Game::instance().changeScene(SCENE_MENU);
@@ -147,7 +140,6 @@ void LevelSelectScene::mousePress(int button)
 	}
 }
 
-// Highlights the button under the window position (x, y), or none
 void LevelSelectScene::updateHover(int x, int y)
 {
 	Game &game = Game::instance();

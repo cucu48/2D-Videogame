@@ -5,8 +5,8 @@
 
 #define SHEET_W 256.f
 #define SHEET_H 512.f
-#define PROJECTILE_ROW_Y 320   // fila de burbujas y esporas en images/enemies.png
-#define BUBBLE_RANGE 128.f     // 4 tiles
+#define PROJECTILE_ROW_Y 320
+#define BUBBLE_RANGE 128.f
 #define POP_TIME 250
 #define BOMB_GRAVITY 0.3f
 #define BOMB_MAX_FALL 6.f
@@ -29,7 +29,6 @@ Projectile::~Projectile()
 		delete sprite;
 }
 
-// spritesheet: images/enemies.png para BUBBLE y SPORE, images/bomb.png para FALLING_BOMB
 void Projectile::init(ProjectileKind kind, const glm::vec2 &center, const glm::vec2 &velocity, Texture *spritesheet, ShaderProgram &shaderProgram)
 {
 	this->kind = kind;
@@ -55,7 +54,6 @@ void Projectile::init(ProjectileKind kind, const glm::vec2 &center, const glm::v
 		float y = PROJECTILE_ROW_Y / SHEET_H;
 		sprite = Sprite::createSprite(glm::ivec2(32, 32), cell, spritesheet, &shaderProgram);
 		sprite->setNumberAnimations(2);
-		// burbuja: columnas 0-2 volando, 3-4 explotando; espora: columnas 5-6
 		int first = (kind == BUBBLE) ? 0 : 5, frames = (kind == BUBBLE) ? 3 : 2;
 		sprite->setAnimationSpeed(FLY, 8);
 		for(int i = 0; i < frames; i++)
@@ -117,7 +115,6 @@ void Projectile::update(int deltaTime, TileMap *map)
 			pos.y = float(hbY - 4);
 			bLanded = true;
 		}
-		// se ha caido fuera del mapa
 		if(pos.y > map->getMapSize().y * map->getTileSize())
 			bFinished = true;
 	}
@@ -126,8 +123,6 @@ void Projectile::update(int deltaTime, TileMap *map)
 		pos += vel;
 		travelled += glm::length(vel);
 		glm::ivec2 hb = hitboxPos();
-		// las esporas (bolas de energia de Trent) atraviesan cualquier bloque;
-		// solo desaparecen al salir del mapa o al tocar al jugador
 		if(kind == BUBBLE && (map->collisionBox(hb, hitboxSize()) || travelled >= BUBBLE_RANGE))
 			pop();
 		glm::ivec2 mapPx = map->getMapSize() * map->getTileSize();

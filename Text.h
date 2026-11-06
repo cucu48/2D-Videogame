@@ -14,16 +14,12 @@
 
 struct CharMetrics
 {
-	int tx, ty; 		// Pos x, y inside texture in pixels
-	int sx, sy; 		// Size of char in pixels
-	int ax, ay; 		// Advance for each character in a string sequence
-	int bl, bt; 		// Bitmap left and top adjusting
+	int tx, ty;
+	int sx, sy;
+	int ax, ay;
+	int bl, bt;
 };
 
-
-// Using Freetype the Text class is capable of building a texture atlas
-// for a given font and size. Combining with TexturedQuad allows it 
-// to render text strings
 
 
 class Text
@@ -38,10 +34,10 @@ public:
 	
 	ShaderProgram &getProgram();
 	int getSize() const;
-	int charAdvance(char c, int size) const;   // advance in pixels of c drawn at the given size
-	int charHeight(char c, int size) const;    // height in pixels of the bitmap of c drawn at the given size
-	int charAscent(char c, int size) const;    // pixels from the baseline up to the top of the bitmap of c
-	void setProjection(const glm::mat4 &projection);   // pixel space the pixel arguments of render refer to
+	int charAdvance(char c, int size) const;
+	int charHeight(char c, int size) const;
+	int charAscent(char c, int size) const;
+	void setProjection(const glm::mat4 &projection);
 	void render(char c, const glm::vec2 &pixel, int size, const glm::vec4 &color);
 	void render(const string &str, const glm::vec2 &pixel, int size, const glm::vec4 &color);
 	
@@ -65,6 +61,6 @@ private:
 };
 
 
-#endif // _TEXT_INCLUDE
+#endif
 
 

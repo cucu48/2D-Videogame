@@ -7,12 +7,12 @@
 #include "Sounds.h"
 
 
-#define SLIDE_IN_END 350     // ms: los paneles llegan al centro
-#define SLAM_TIME 120        // ms que dura el golpe del VS (zoom y destello)
-#define SHAKE_TIME 300       // ms que tiembla la pantalla tras el golpe
-#define OUT_START 3400       // ms: empiezan a salir los paneles (total: OUT_START + OUT_TIME = 4 s)
-#define OUT_TIME 600         // ms que tardan en salir
-#define VS_W 320             // tamano de las imagenes de los paneles
+#define SLIDE_IN_END 350
+#define SLAM_TIME 120
+#define SHAKE_TIME 300
+#define OUT_START 3400
+#define OUT_TIME 600
+#define VS_W 320
 #define VS_H 304
 
 
@@ -104,7 +104,6 @@ void VsScreen::render(ShaderProgram &program, int width, int height)
 	program.setUniformMatrix4f("projection", projection);
 	program.setUniform2f("texCoordDispl", 0.f, 0.f);
 
-	// Golpe del VS: destello blanco y temblor que se va apagando
 	float sinceSlam = float(time - SLIDE_IN_END);
 	bool flash = sinceSlam >= 0.f && sinceSlam < 70.f;
 	glm::vec2 shake(0.f);
@@ -113,10 +112,9 @@ void VsScreen::render(ShaderProgram &program, int width, int height)
 		float amp = 4.f * (1.f - sinceSlam / SHAKE_TIME);
 		shake = glm::vec2(float(rand() % 3 - 1), float(rand() % 3 - 1)) * amp;
 	}
-	float bright = flash ? 4.f : 1.f;   // el shader multiplica: >1 satura hacia blanco
+	float bright = flash ? 4.f : 1.f;
 	program.setUniform4f("color", bright, bright, bright, 1.f);
 
-	// Paneles: entran desde los lados y salen en diagonal (izquierda arriba, derecha abajo)
 	glm::vec2 leftPos, rightPos;
 	if(time < SLIDE_IN_END)
 	{
@@ -129,12 +127,11 @@ void VsScreen::render(ShaderProgram &program, int width, int height)
 	else
 	{
 		float t = easeInCubic(clamp01(float(time - OUT_START) / OUT_TIME));
-		glm::vec2 dir(1.f, 0.45f);   // a lo largo de la diagonal de los paneles
+		glm::vec2 dir(1.f, 0.45f);
 		leftPos = -dir * (width * 1.3f * t);
 		rightPos = dir * (width * 1.3f * t);
 	}
 
-	// Fondo negro hasta que empieza la salida: luego ya se ve el nivel por detras
 	glm::mat4 base = glm::translate(glm::mat4(1.f), glm::vec3(glm::floor(shake), 0.f));
 	if(time < OUT_START)
 	{
@@ -149,7 +146,6 @@ void VsScreen::render(ShaderProgram &program, int width, int height)
 	program.setUniformMatrix4f("modelview", m);
 	rightQuad->render(rightTex);
 
-	// VS: cae desde grande al chocar los paneles, late, y al salir crece y desaparece
 	float scale = 0.f;
 	if(sinceSlam >= 0.f && sinceSlam < SLAM_TIME)
 		scale = 1.f + 3.f * (1.f - sinceSlam / SLAM_TIME);
@@ -160,7 +156,6 @@ void VsScreen::render(ShaderProgram &program, int width, int height)
 	if(scale > 0.f)
 	{
 		glm::vec2 size(vsTex.width() * scale, vsTex.height() * scale);
-		// un poco por encima del centro, para no tapar la cabeza de Bomberman
 		glm::vec2 pos = glm::floor(glm::vec2(width * 0.5f, height * 0.4f) - size / 2.f);
 		glm::mat4 m = glm::translate(base, glm::vec3(pos, 0.f));
 		m = glm::scale(m, glm::vec3(scale, scale, 1.f));

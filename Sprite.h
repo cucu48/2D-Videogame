@@ -9,9 +9,6 @@
 #include "AnimKeyframes.h"
 
 
-// This class is derived from code seen earlier in TexturedQuad but it is also
-// able to manage animations stored as a spritesheet. 
-
 
 class Sprite
 {
@@ -21,7 +18,6 @@ public:
 	~Sprite();
 
 public:
-	// Textured quads can only be created inside an OpenGL context
 	static Sprite *createSprite(const glm::vec2 &quadSize, const glm::vec2 &sizeInSpritesheet, Texture *spritesheet, ShaderProgram *program);
 
 	void update(int deltaTime);
@@ -51,5 +47,5 @@ private:
 };
 
 
-#endif // _SPRITE_INCLUDE
+#endif
 

@@ -1,15 +1,13 @@
-# Genera images/bong.png: el coleccionable, 2 frames de 16x16 (el segundo con brillo).
-# Uso (desde la raiz del repo): python3 scripts/make_bong_sprite.py
 from PIL import Image
 
 PAL = {
     '.': (0, 0, 0, 0),
-    'O': (16, 48, 24, 255),      # contorno
-    'D': (40, 120, 48, 255),     # sombra
-    'G': (72, 184, 72, 255),     # verde
-    'L': (152, 232, 112, 255),   # luz
-    'H': (240, 248, 160, 255),   # reflejo
-    'W': (255, 255, 255, 255),   # destello
+    'O': (16, 48, 24, 255),
+    'D': (40, 120, 48, 255),
+    'G': (72, 184, 72, 255),
+    'L': (152, 232, 112, 255),
+    'H': (240, 248, 160, 255),
+    'W': (255, 255, 255, 255),
 }
 
 BONG = [

@@ -6,14 +6,11 @@
 #include "Sprite.h"
 
 
-// Power-ups: a bush may hide one. It appears on the tile of the destroyed bush
-// and is applied (by Level) when the player touches it.
 enum PowerUpType
 {
 	PU_BOMB_UP, PU_FIRE_UP, PU_SPEED_UP, PU_REMOTE, PU_ARMOR, PU_FULL_FIRE, PU_HEART, PU_TIMER, PU_WINGS
 };
 
-// Names used in the entities file: bombup fireup speedup remote armor fullfire heart timer wings
 bool parsePowerUp(const std::string &name, PowerUpType *type);
 
 
@@ -24,7 +21,6 @@ public:
 	Pickup();
 	~Pickup();
 
-	// spritesheet = images/PowerUps.png (4x4 cells of 16x16)
 	void init(PowerUpType type, const glm::ivec2 &tile, int tileSize, Texture *spritesheet, ShaderProgram &shaderProgram);
 	void render();
 
@@ -42,4 +38,4 @@ private:
 };
 
 
-#endif // _PICKUP_INCLUDE
+#endif

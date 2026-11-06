@@ -24,7 +24,6 @@ int main(int argc, char* argv[]) {
 
     int width, height, originalChannels;
 
-    // Request 4 channels per pixel: red, green, blue, alpha.
     unique_ptr<unsigned char, decltype(&stbi_image_free)> pixels(stbi_load(
         argv[1], &width, &height, &originalChannels, 4
     ), stbi_image_free);
@@ -40,7 +39,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    //Custom logic
     map<tile, int> tileMap;
     vector< vector<int> > level(height / 16, vector<int>(width / 16));
     for (int y = 0; y < height; y += 16) {
@@ -64,7 +62,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Use power-of-two dimensions, with enough slots for every unique tile.
     size_t widthTileMap = 1;
     while (widthTileMap * widthTileMap < tileMap.size()) {
         widthTileMap *= 2;

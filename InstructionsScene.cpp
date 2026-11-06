@@ -7,11 +7,10 @@
 #include "Game.h"
 
 
-// Como el menu: fondo en 160x144 y texto al doble de resolucion
 #define VIRTUAL_WIDTH 160
 #define VIRTUAL_HEIGHT 144
 #define TEXT_SCALE 2
-#define DIM 0.3f                // el fondo del menu se pinta oscurecido (multiplica el color)
+#define DIM 0.3f
 #define TEXT_TOP 24.f
 #define BUTTON_Y 280.f
 
@@ -43,11 +42,10 @@ void InstructionsScene::init()
 
 void InstructionsScene::onEnter()
 {
-	// la musica del menu sigue sonando
 	buttons.setSelected(0);
 }
 
-void InstructionsScene::update(int /*deltaTime*/)
+void InstructionsScene::update(int )
 {
 }
 

@@ -23,9 +23,9 @@ void Explosion::init(const glm::ivec2 &tile, ExplosionPiece piece, int tileSize,
 
 	sprite = Sprite::createSprite(glm::ivec2(tileSize, tileSize), glm::vec2(0.25f, 0.125f), spritesheet, &shaderProgram);
 	sprite->setNumberAnimations(1);
-	sprite->setAnimationSpeed(0, 10); // 6 keyframes en 600 ms
-	float row = 0.125f * piece; // images/explosion.png: una fila de 32 px por pieza (8 filas)
-	const int frames[6] = { 0, 1, 2, 2, 1, 0 }; // crece y se apaga
+	sprite->setAnimationSpeed(0, 10);
+	float row = 0.125f * piece;
+	const int frames[6] = { 0, 1, 2, 2, 1, 0 };
 	for(int i = 0; i < 6; i++)
 		sprite->addKeyframe(0, glm::vec2(0.25f * frames[i], row));
 	sprite->changeAnimation(0);

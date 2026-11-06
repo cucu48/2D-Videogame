@@ -1,10 +1,7 @@
-# Genera las imagenes de la pantalla "VS" del nivel del jefe (images/vs_*.png)
-# a partir de los sprites del juego. Uso (desde la raiz del repo):
-#   python3 scripts/make_vs_images.py
 from PIL import Image, ImageDraw, ImageFont
 
-W, H = 320, 304            # pantalla virtual del nivel (mapa 320x288 + HUD 16)
-SEAM_TOP, SEAM_BOTTOM = 196, 124   # x de la diagonal arriba y abajo
+W, H = 320, 304
+SEAM_TOP, SEAM_BOTTOM = 196, 124
 FONT = 'images/bytebounce.medium.ttf'
 
 BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]
@@ -15,7 +12,6 @@ def seam_x(y, offset=0):
 
 
 def dithered(palette, value_fn, block=2):
-    """Fondo pixel-art: value_fn(x, y) en [0,1] se cuantiza a la paleta con Bayer."""
     im = Image.new('RGBA', (W, H))
     px = im.load()
     n = len(palette) - 1
@@ -57,7 +53,6 @@ def text_img(txt, size, fill, outline, outline2=None, scale=2):
             for dy in range(-rad, rad + 1):
                 d.text((pad - l + dx, pad - t + dy), txt, font=font, fill=col)
     d.text((pad - l, pad - t), txt, font=font, fill=fill)
-    # sin semitransparencias: el shader descarta alpha < 0.5
     px = im.load()
     for y in range(im.height):
         for x in range(im.width):
@@ -82,7 +77,6 @@ def mask(left):
 
 
 def border(im, left):
-    """Franja negra y otra de color a lo largo de la diagonal."""
     d = ImageDraw.Draw(im)
     for y in range(H):
         x = seam_x(y)
@@ -100,19 +94,17 @@ def finish(im, left):
     return out
 
 
-# --- Bomberman (izquierda): fondo de fuego ---
 fire = [(40, 0, 8, 255), (112, 8, 8, 255), (200, 32, 16, 255), (240, 104, 24, 255), (255, 200, 64, 255)]
 left = dithered(fire, lambda x, y: 1.05 - (((x - 70) / 190.0) ** 2 + ((y - 210) / 230.0) ** 2) ** 0.5)
 streaks(left, (255, 220, 120, 255), 1, -0.6, 22)
 streaks(left, (60, 0, 8, 255), 2, -0.6, 14)
-bomber = sprite('images/player.png', (64, 96, 96, 128), 4)   # de frente
+bomber = sprite('images/player.png', (64, 96, 96, 128), 4)
 left.alpha_composite(bomber, (12, H - bomber.height - 24))
 name = text_img('BOMBERMAN', 16, (255, 255, 255, 255), (16, 8, 8, 255), (230, 40, 24, 255))
 left.alpha_composite(name, (6, 6))
 border(left, True)
 finish(left, True).save('images/vs_left.png')
 
-# --- Trent (derecha): bosque de noche ---
 forest = [(8, 4, 20, 255), (24, 16, 56, 255), (24, 64, 48, 255), (48, 136, 56, 255), (152, 224, 96, 255)]
 right = dithered(forest, lambda x, y: 1.0 - (((x - 250) / 200.0) ** 2 + ((y - 190) / 230.0) ** 2) ** 0.5)
 streaks(right, (180, 255, 140, 255), 3, -0.6, 18)
@@ -124,8 +116,6 @@ right.alpha_composite(name, (W - name.width - 6, H - name.height - 6))
 border(right, False)
 finish(right, False).save('images/vs_right.png')
 
-# --- "VS" ---
 text_img('VS', 32, (255, 214, 48, 255), (200, 16, 16, 255), (16, 8, 8, 255), 3).save('images/vs_text.png')
 
-# fondo negro de 8x8 (se estira)
 Image.new('RGBA', (8, 8), (0, 0, 0, 255)).save('images/vs_black.png')

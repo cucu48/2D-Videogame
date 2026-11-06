@@ -10,21 +10,20 @@
 
 #define JUMP_ANGLE_STEP 4
 #define JUMP_HEIGHT 96
-#define FLAP_HEIGHT 40   // wings: how high each flap lifts the player
+#define FLAP_HEIGHT 40
 #define MAX_SPEED_MUL 2.f
 #define SPEED_STEP 0.2f
 #define FALL_STEP 4
-#define MOVE_SPEED 2.5f // px por frame, igual andando que saltando (admite decimales)
+#define MOVE_SPEED 2.5f
 #define HITBOX_OFFSET_X 4
 #define HITBOX_WIDTH 24
 #define HITBOX_HEIGHT 32
 #define INVULNERABLE_TIME 2000
 #define DANCE_MUSIC "sounds/default_dance.mp3"
-#define JUMP_COOLDOWN 450  // ms minimos entre el inicio de un salto y el siguiente (un salto
-                           // completo dura ~780 ms; solo se nota si un techo lo corta)
-#define COYOTE_TIME 100    // ms de margen para saltar al salir de una plataforma
-#define JUMP_BUFFER 150    // ms que se recuerda una pulsacion de saltar hecha en el aire
-#define CORNER_TOLERANCE 8 // px que se puede empujar al jugador para colarse por un hueco
+#define JUMP_COOLDOWN 450
+#define COYOTE_TIME 100
+#define JUMP_BUFFER 150
+#define CORNER_TOLERANCE 8
 
 
 enum PlayerAnims
@@ -102,39 +101,30 @@ void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
 		sprite->addKeyframe(MOVE_RIGHT, glm::vec2(0.25f, 0.25f));
 		sprite->addKeyframe(MOVE_RIGHT, glm::vec2(0.5f, 0.25f));
 
-// --- SALTO IZQUIERDA (3ª fila, Y = 0.5f) ---
-    // Subir (Frame 0, Columna 0)
     	sprite->setAnimationSpeed(JUMP_UP_LEFT, 4);
     	sprite->addKeyframe(JUMP_UP_LEFT, glm::vec2(0.f, 0.5f));
     
-    // Caer (Frame 1, Columna 1)
     	sprite->setAnimationSpeed(JUMP_FALL_LEFT, 4);
     	sprite->addKeyframe(JUMP_FALL_LEFT, glm::vec2(0.25f, 0.5f));
 
-    // --- SALTO DERECHA (3ª fila, Y = 0.5f) ---
-    // Subir (Frame 0, Columna 2)
     	sprite->setAnimationSpeed(JUMP_UP_RIGHT, 4);
     	sprite->addKeyframe(JUMP_UP_RIGHT, glm::vec2(0.5f, 0.5f));
     
-    // Caer (Frame 1, Columna 3)
     	sprite->setAnimationSpeed(JUMP_FALL_RIGHT, 4);
     	sprite->addKeyframe(JUMP_FALL_RIGHT, glm::vec2(0.75f, 0.5f));
 
-    // --- MUERTE (4º sprite de la 1ª y 2ª fila, alternando) ---
     	sprite->setAnimationSpeed(DEATH, 8);
     	sprite->addKeyframe(DEATH, glm::vec2(0.75f, 0.f));
     	sprite->addKeyframe(DEATH, glm::vec2(0.75f, 0.25f));
 		
 	sprite->changeAnimation(0);
 
-	// --- BAILE (images/player_dance.png: 8 frames de 32x32 en 4 columnas x 2 filas) ---
 	danceSheet.loadFromFile("images/player_dance.png", TEXTURE_PIXEL_FORMAT_RGBA);
 	danceSheet.setMinFilter(GL_NEAREST);
 	danceSheet.setMagFilter(GL_NEAREST);
 	danceSprite = Sprite::createSprite(glm::ivec2(32, 32), glm::vec2(0.25f, 0.5f), &danceSheet, &shaderProgram);
 	danceSprite->setNumberAnimations(1);
 	danceSprite->setAnimationSpeed(0, 7);
-	// brazos cruzados (x4), punos arriba con rodilla (x4), piernas abiertas (x4), ondear (x4)
 	const int danceSteps[16] = { 0, 1, 0, 1, 2, 3, 2, 3, 4, 5, 4, 5, 6, 7, 6, 7 };
 	for(int i = 0; i < 16; i++)
 		danceSprite->addKeyframe(0, glm::vec2(0.25f * (danceSteps[i] % 4), 0.5f * (danceSteps[i] / 4)));
@@ -157,11 +147,9 @@ void Player::update(int deltaTime)
     if(jumpBuffer > 0)
         jumpBuffer -= deltaTime;
 
-    // muerto: solo se reproduce la animacion de muerte, sin control ni gravedad
     if(bDead)
         return;
 
-    // bailando: no se mueve; cualquier tecla de movimiento corta el baile
     if(bDancing)
     {
         if(Game::instance().getKey(GLFW_KEY_LEFT) || Game::instance().getKey(GLFW_KEY_RIGHT) ||
@@ -176,13 +164,10 @@ void Player::update(int deltaTime)
 
     glm::ivec2 hbSize(HITBOX_WIDTH, HITBOX_HEIGHT);
     bool bInAir = bJumping || !bOnGround;
-    // velocidad con decimales: se acumula la parte fraccionaria (2.5 -> 2, 3, 2, 3...)
     moveAccum += MOVE_SPEED * getSpeedMul();
     int speed = int(moveAccum);
     moveAccum -= speed;
     
-    // --- MOVIMIENTO HORIZONTAL ---
-    // con las dos flechas pulsadas manda la ultima (en el suelo y en el aire)
     bool leftNow = Game::instance().getKey(GLFW_KEY_LEFT);
     bool rightNow = Game::instance().getKey(GLFW_KEY_RIGHT);
     if(leftNow && !leftWasPressed)
@@ -232,11 +217,9 @@ void Player::update(int deltaTime)
             sprite->changeAnimation(STAND_RIGHT);
     }
     
-    // --- ALAS: en el aire, cada nueva pulsacion de UP da un aleteo ---
     bool upNow = Game::instance().getKey(GLFW_KEY_UP);
     if(upNow && !upWasPressed)
         jumpBuffer = JUMP_BUFFER;
-    // recien salido de una plataforma andando: aun cuenta como saltar desde el suelo
     if(upNow && !bJumping && !bOnGround && coyoteTime > 0 && jumpCooldown <= 0)
     {
         startJump();
@@ -253,24 +236,20 @@ void Player::update(int deltaTime)
     }
     upWasPressed = upNow;
 
-    // --- MOVIMIENTO VERTICAL ---
     if(bRising)
     {
-        // subida del salto: media parabola (de 0 a 90 graus)
         jumpAngle += JUMP_ANGLE_STEP;
         if(jumpAngle >= 90)
         {
             posPlayer.y = startY - curJumpHeight;
-            bRising = false; // a partir de aqui cae con la gravedad normal
+            bRising = false;
         }
         else
             posPlayer.y = int(startY - curJumpHeight * sin(3.14159f * jumpAngle / 180.f));
 
-        // techo: si la cabeza entra en un tile solido, se recoloca debajo y empieza a caer
         int freeY = posPlayer.y;
         if(map->collisionMoveUp(hitboxPos(), hbSize, &posPlayer.y))
         {
-            // si solo roza la esquina del techo, se le empuja de lado hacia el hueco
             posPlayer.y = freeY;
             if(!nudgeHorizontal())
             {
@@ -283,7 +262,6 @@ void Player::update(int deltaTime)
     }
     else
     {
-        // caida: la misma velocidad tanto si viene de un salto como si no
         posPlayer.y += FALL_STEP;
         bOnGround = map->collisionMoveDown(hitboxPos(), hbSize, &posPlayer.y);
 
@@ -291,14 +269,11 @@ void Player::update(int deltaTime)
         {
             bJumping = false;
             coyoteTime = COYOTE_TIME;
-            // con un techo justo encima el salto se corta enseguida: el cooldown
-            // evita poder spamearlo. Tambien vale si UP se pulso justo antes de aterrizar.
             if((Game::instance().getKey(GLFW_KEY_UP) || jumpBuffer > 0) && jumpCooldown <= 0)
                 startJump();
         }
     }
 
-    // --- ANIMACION ---
     int targetAnim = -1;
     if(bRising)
         targetAnim = lookingRight ? JUMP_UP_RIGHT : JUMP_UP_LEFT;
@@ -306,7 +281,7 @@ void Player::update(int deltaTime)
         targetAnim = lookingRight ? JUMP_FALL_RIGHT : JUMP_FALL_LEFT;
     else if(sprite->animation() == JUMP_FALL_LEFT || sprite->animation() == JUMP_FALL_RIGHT ||
             sprite->animation() == JUMP_UP_LEFT || sprite->animation() == JUMP_UP_RIGHT)
-        targetAnim = lookingRight ? STAND_RIGHT : STAND_LEFT; // acaba de aterrizar
+        targetAnim = lookingRight ? STAND_RIGHT : STAND_LEFT;
     
     if(targetAnim != -1 && sprite->animation() != targetAnim)
         sprite->changeAnimation(targetAnim);
@@ -328,8 +303,6 @@ bool Player::nudgeHorizontal()
     return false;
 }
 
-// Correccion de esquina lateral: en el aire, si al chocar con una pared basta
-// con subir o bajar unos pixeles para entrar en un hueco, se hace.
 bool Player::nudgeVertical()
 {
     glm::ivec2 hbSize(HITBOX_WIDTH, HITBOX_HEIGHT);
@@ -338,7 +311,7 @@ bool Player::nudgeVertical()
             if(!map->collisionBox(hitboxPos() + glm::ivec2(0, s * d), hbSize))
             {
                 posPlayer.y += s * d;
-                startY += s * d; // la subida del salto sigue la curva desde la nueva altura
+                startY += s * d;
                 return true;
             }
     return false;
@@ -356,7 +329,6 @@ void Player::toggleDance()
     bDancing = true;
     danceSprite->changeAnimation(0);
     danceSprite->setPosition(glm::vec2(float(tileMapDispl.x + posPlayer.x), float(tileMapDispl.y + posPlayer.y)));
-    // la musica del mundo se pausa y sigue por donde iba al acabar el baile
     Audio::instance().pushMusic(DANCE_MUSIC, true);
 }
 
@@ -365,7 +337,6 @@ void Player::stopDance()
     if(!bDancing)
         return;
     bDancing = false;
-    // vuelve la musica que sonaba antes del baile, por donde iba
     Audio::instance().popMusic();
     sprite->changeAnimation(lookingRight ? STAND_RIGHT : STAND_LEFT);
 }
@@ -422,12 +393,11 @@ void Player::addSpeed()
 {
 	speedMul = std::min(speedMul + SPEED_STEP, MAX_SPEED_MUL);
 	if(speedMul > MAX_SPEED_MUL - 0.01f)
-		speedMul = MAX_SPEED_MUL; // float steps could stop just under 2.0
+		speedMul = MAX_SPEED_MUL;
 }
 
 void Player::render()
 {
-	// mientras es invulnerable, parpadea (se dibuja 100 ms si, 100 ms no)
 	if(invulnerableTime > 0 && (invulnerableTime / 100) % 2 == 0)
 		return;
 	if(bDancing)

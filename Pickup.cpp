@@ -1,7 +1,6 @@
 #include "Pickup.h"
 
 
-// Cell (row, col) of each power-up in images/PowerUps.png
 struct PowerUpInfo
 {
 	const char *name;
@@ -9,15 +8,15 @@ struct PowerUpInfo
 };
 
 static const PowerUpInfo POWER_UPS[] = {
-	{ "bombup",   0, 0 },   // PU_BOMB_UP
-	{ "fireup",   0, 1 },   // PU_FIRE_UP
-	{ "speedup",  0, 2 },   // PU_SPEED_UP
-	{ "remote",   3, 0 },   // PU_REMOTE
-	{ "armor",    2, 0 },   // PU_ARMOR
-	{ "fullfire", 1, 2 },   // PU_FULL_FIRE
-	{ "heart",    2, 1 },   // PU_HEART
-	{ "timer",    1, 1 },   // PU_TIMER
-	{ "wings",    2, 2 }    // PU_WINGS
+	{ "bombup",   0, 0 },
+	{ "fireup",   0, 1 },
+	{ "speedup",  0, 2 },
+	{ "remote",   3, 0 },
+	{ "armor",    2, 0 },
+	{ "fullfire", 1, 2 },
+	{ "heart",    2, 1 },
+	{ "timer",    1, 1 },
+	{ "wings",    2, 2 }
 };
 static const int NUM_POWER_UPS = sizeof(POWER_UPS) / sizeof(POWER_UPS[0]);
 

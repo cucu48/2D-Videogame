@@ -3,17 +3,15 @@
 #include "Instructions.h"
 
 
-// Tipos de linea: titulo de apartado, texto centrado o fila "tecla  accion"
 enum LineKind { HEADER, TEXT, ROW, GAP };
 
 struct HelpLine
 {
 	LineKind kind;
-	const char *a;     // texto, o la tecla en las filas
-	const char *b;     // accion (solo filas)
+	const char *a;
+	const char *b;
 };
 
-// La fuente solo tiene ASCII: sin acentos
 static const HelpLine HELP[] = {
 	{ HEADER, "OBJECTIU", "" },
 	{ TEXT, "ELIMINA TOTS ELS ENEMICS I SURT", "" },
@@ -40,11 +38,11 @@ static const HelpLine HELP[] = {
 #define TITLE_SIZE 16
 #define HEADER_SIZE 12
 #define BODY_SIZE 10
-#define TITLE_SPACING 22.f      // de la linea base del titulo a la primera linea
+#define TITLE_SPACING 22.f
 #define HEADER_SPACING 14.f
 #define BODY_SPACING 12.f
 #define GAP_SPACING 4.f
-#define ROW_GAP 8.f             // px entre la tecla y la accion (a cada lado del centro)
+#define ROW_GAP 8.f
 
 static const glm::vec4 GOLD(1.f, 0.85f, 0.35f, 1.f);
 static const glm::vec4 CREAM(1.f, 0.95f, 0.85f, 1.f);
@@ -70,7 +68,6 @@ float Instructions::textWidth(const std::string &str, int size) const
 	return float(width);
 }
 
-// Texto con un contorno oscuro para que se lea encima de cualquier fondo
 void Instructions::label(const std::string &str, const glm::vec2 &pos, int size, const glm::vec4 &color)
 {
 	glm::vec2 p(std::floor(pos.x), std::floor(pos.y));
@@ -111,7 +108,6 @@ void Instructions::render(const glm::mat4 &projection, float centerX, float top)
 			label(a, glm::vec2(centerX - textWidth(a, BODY_SIZE) / 2.f, y), BODY_SIZE, CREAM);
 		else
 		{
-			// la tecla acaba a la izquierda del centro y la accion empieza a la derecha
 			label(a, glm::vec2(centerX - ROW_GAP / 2.f - textWidth(a, BODY_SIZE), y), BODY_SIZE, KEY_COLOR);
 			label(b, glm::vec2(centerX + ROW_GAP / 2.f, y), BODY_SIZE, CREAM);
 		}

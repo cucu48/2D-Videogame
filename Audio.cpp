@@ -4,7 +4,6 @@
 #include <cstdlib>
 #include "Audio.h"
 
-// miniaudio's implementation is compiled only in this file, without our strict warnings
 #if defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
@@ -33,8 +32,8 @@ struct Audio::Impl
 {
 	ma_context context;
 	ma_engine engine;
-	ma_sound *music;        // current track, NULL if none
-	ma_sound *paused;       // track put aside by pushMusic, kept at its position
+	ma_sound *music;
+	ma_sound *paused;
 	std::string pausedFile;
 	bool pausedLoop;
 };
@@ -72,7 +71,6 @@ Audio::~Audio()
 	}
 }
 
-// The engine is created the first time a sound is needed
 bool Audio::init()
 {
 	if(bInitialized)
@@ -84,12 +82,8 @@ bool Audio::init()
 	impl->paused = NULL;
 	impl->pausedLoop = false;
 
-	// Only real outputs: without this, miniaudio silently falls back to its
-	// "null" backend (plays nothing) when it can't reach the sound server.
-	// In WSL the sound goes through PulseAudio (WSLg).
 	ma_backend backends[] = { ma_backend_pulseaudio, ma_backend_alsa, ma_backend_jack,
 	                          ma_backend_wasapi, ma_backend_coreaudio };
-	// PulseAudio (WSLg) buffers a lot by default; ask it for low latency
 #if !defined(_WIN32)
 	setenv("PULSE_LATENCY_MSEC", "30", 0);
 #endif
@@ -101,7 +95,6 @@ bool Audio::init()
 	}
 	ma_engine_config config = ma_engine_config_init();
 	config.pContext = &impl->context;
-	// Small buffer so the sound comes out right when it's played
 	config.periodSizeInMilliseconds = 10;
 	if(ma_engine_init(&config, &impl->engine) != MA_SUCCESS)
 	{
@@ -117,7 +110,6 @@ bool Audio::init()
 	return true;
 }
 
-// Finds the file on disk: as given, or adding .wav / .mp3 / .flac
 bool Audio::resolve(const string &file, string &path)
 {
 	const char *exts[] = { "", ".wav", ".mp3", ".flac" };
@@ -141,7 +133,7 @@ bool Audio::playMusic(const string &file, bool loop)
 	if(!init())
 		return false;
 	stopMusic();
-	dropPaused();   // another track takes over: the paused one won't come back
+	dropPaused();
 	musicFile = file;
 	bMusicLoop = loop;
 	if(!resolve(file, path))
@@ -157,8 +149,6 @@ bool Audio::playMusic(const string &file, bool loop)
 	impl->music = s;
 	applyMusicVolume();
 	ma_sound_set_looping(s, loop ? MA_TRUE : MA_FALSE);
-	// Optional loop points: "<file>.loop" holds the first and the end frame of
-	// the part that repeats, so the intro only sounds once and the loop is seamless
 	if(loop)
 	{
 		ifstream lf((file + ".loop").c_str());
@@ -190,7 +180,6 @@ void Audio::dropPaused()
 	impl->paused = NULL;
 }
 
-// Pauses the current track where it is and plays another one on top
 void Audio::pushMusic(const string &file, bool loop)
 {
 	if(!init())
@@ -200,7 +189,7 @@ void Audio::pushMusic(const string &file, bool loop)
 	bool prevLoop = bMusicLoop;
 	ma_sound *prev = impl->music;
 	if(prev != NULL)
-		ma_sound_stop(prev);   // stop keeps the position: start resumes from there
+		ma_sound_stop(prev);
 	impl->music = NULL;
 	musicFile.clear();
 	playMusic(file, loop);
@@ -209,7 +198,6 @@ void Audio::pushMusic(const string &file, bool loop)
 	impl->pausedLoop = prevLoop;
 }
 
-// Stops the pushed track and resumes the paused one from where it was
 void Audio::popMusic()
 {
 	if(impl == NULL)
@@ -232,8 +220,6 @@ void Audio::setVolume(float v)
 		ma_engine_set_volume(&impl->engine, volumeGain(volume));
 }
 
-// El oido es logaritmico: con el volumen lineal casi no se nota la diferencia
-// hasta llegar abajo del todo. Cada paso del 10% son 4 dB (100% = 0 dB, 10% = -36 dB).
 float Audio::volumeGain(float v)
 {
 	if(v <= 0.001f)
@@ -264,10 +250,6 @@ void Audio::applyMusicVolume()
 	}
 }
 
-// Creates one more voice for a sound effect, fully decoded in memory. The
-// first one reads the file (synchronously, not in the background like
-// ma_engine_play_sound does, which is what delayed the sounds); the next ones
-// share its decoded data, so they are instant.
 void *Audio::newVoice(const string &file)
 {
 	vector<void *> &v = voices[file];
@@ -302,10 +284,9 @@ void Audio::preload(const string &file)
 		newVoice(file);
 }
 
-// Sound effect: plays once and can overlap with others and with the music
 void Audio::playSound(const string &file)
 {
-	const size_t MAX_VOICES = 8;   // the same effect sounding at once
+	const size_t MAX_VOICES = 8;
 	if(!init())
 		return;
 	vector<void *> &v = voices[file];
@@ -315,7 +296,7 @@ void Audio::playSound(const string &file)
 			s = (ma_sound *)v[i];
 	if(s == NULL && v.size() < MAX_VOICES)
 		s = (ma_sound *)newVoice(file);
-	if(s == NULL)   // missing file, or all voices busy: restart the oldest one
+	if(s == NULL)
 	{
 		if(v.empty())
 			return;

@@ -6,13 +6,6 @@
 #include "TileMap.h"
 
 
-// Trent, el jefe del bosque (tipo 9 en levels/Stage1-<n>_enemies.txt).
-// Anda de lado a lado por arriba del mapa atravesando paredes y bombas. Si el
-// jugador pasa por delante, a veces baja hasta abajo del todo y vuelve a subir.
-// Cada pocos segundos se para y lanza un ataque, que Level recoge con
-// takeAttack(): hojas que persiguen, esporas de polen o lluvia de bombas.
-// Aguanta 5 golpes de explosion y hace dano al tocarle.
-
 
 enum TrentAttack
 {
@@ -38,9 +31,9 @@ public:
 	glm::ivec2 getPosition() const { return pos; }
 	int spriteSize() const { return 64; }
 
-	bool hit();                     // le alcanza una explosion; true si le ha hecho dano
-	void kill();                    // muere al instante (tecla K)
-	TrentAttack takeAttack();       // ataque que acaba de lanzar (una sola vez)
+	bool hit();
+	void kill();
+	TrentAttack takeAttack();
 	bool isDying() const { return bDying; }
 	bool isGone() const { return bDying && dyingTime <= 0; }
 
@@ -67,4 +60,4 @@ private:
 };
 
 
-#endif // _TRENT_INCLUDE
+#endif

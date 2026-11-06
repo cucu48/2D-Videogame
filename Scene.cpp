@@ -4,7 +4,6 @@
 #include "Scene.h"
 
 
-// Largest size that keeps the aspect ratio of the virtual screen, centered in the window
 static void letterboxRect(int windowWidth, int windowHeight, int virtualWidth, int virtualHeight, int &x, int &y, int &w, int &h)
 {
 	float scale = std::min(windowWidth / float(virtualWidth), windowHeight / float(virtualHeight));

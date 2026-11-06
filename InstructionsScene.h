@@ -9,9 +9,6 @@
 #include "Instructions.h"
 
 
-// Instrucciones desde el menu principal: el fondo del menu oscurecido, el
-// texto y el boton "Tornar" (tambien Esc) para volver al menu.
-
 
 class InstructionsScene : public Scene
 {
@@ -39,4 +36,4 @@ private:
 };
 
 
-#endif // _INSTRUCTIONS_SCENE_INCLUDE
+#endif

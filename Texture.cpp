@@ -1,6 +1,5 @@
 #include <cstdlib>
 #if defined(USE_STB_IMAGE)
-// Windows (MSYS2) has no SOIL package: stb_image, which SOIL uses inside, loads the same files
 #define STB_IMAGE_IMPLEMENTATION
 #include "third_party/stb_image.h"
 #define SOIL_LOAD_RGB STBI_rgb
@@ -58,7 +57,7 @@ bool Texture::loadFromFile(const string &filename, PixelFormat format)
 		break;
 	}
 	glGenerateMipmap(GL_TEXTURE_2D);
-	free(image);  // SOIL and stb_image allocate with malloc
+	free(image);
 	
 	return true;
 }

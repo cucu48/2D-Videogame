@@ -8,37 +8,32 @@
 #include "Sounds.h"
 
 
-#define VIRTUAL_WIDTH 320          // tamano de images/secret_bg.png
+#define VIRTUAL_WIDTH 320
 #define VIRTUAL_HEIGHT 288
-#define FX_W 128                   // images/secret_fx.png: celdas de 16x16
+#define FX_W 128
 #define FX_H 32
-#define FADE_IN_TIME 1600          // ms del fundido desde negro
-#define FADE_OUT_TIME 1200         // ms del fundido a negro al salir
-#define PROMPT_TIME 6000           // ms hasta que sale "PRESS SPACE"
-#define SKIP_TIME 2500             // antes de esto no se puede salir (para no saltarla sin querer)
+#define FADE_IN_TIME 1600
+#define FADE_OUT_TIME 1200
+#define PROMPT_TIME 6000
+#define SKIP_TIME 2500
 #define BLINK_TIME 500
 
-// Creditos: salen de detras de las colinas y suben hasta desaparecer arriba
-#define CREDITS_START 2000         // ms: empiezan cuando ya se ve la escena
-#define CREDITS_SPEED 0.016f       // px por ms (unos 16 px/s)
-#define CREDITS_BOTTOM 160.f       // y (linea base) donde nace cada linea, tapada por las colinas
-#define CREDITS_FADE_FROM 52.f     // por encima de aqui (parte de arriba del texto) se van apagando...
-#define CREDITS_FADE_TO 8.f        // ...y aqui ya no se ven
-#define CREDITS_LAST_Y 72.f        // la ultima linea ("GRACIES PER JUGAR") se queda aqui
+#define CREDITS_START 2000
+#define CREDITS_SPEED 0.016f
+#define CREDITS_BOTTOM 160.f
+#define CREDITS_FADE_FROM 52.f
+#define CREDITS_FADE_TO 8.f
+#define CREDITS_LAST_Y 72.f
 
-// Humo: cada bocanada vive SMOKE_LIFE ms, sube y crece (celdas 3..6)
 #define SMOKE_LIFE 2400
-#define SMOKE_EMIT 170             // ms entre bocanadas mientras alguien exhala
+#define SMOKE_EMIT 170
 
-// Bomberman y Eyti: calada (burbujas y brasa) y luego sueltan el humo
 #define PUFF_PERIOD 4200
 #define INHALE_TIME 1500
 #define EXHALE_START 2100
 #define EXHALE_TIME 1300
 
 
-// Alguien que echa humo: boca (centro de la bocanada al salir), escala,
-// ciclo, desfase y hacia donde se va el humo
 struct Smoker
 {
 	float x, y;
@@ -49,8 +44,8 @@ struct Smoker
 };
 
 static const Smoker SMOKERS[] = {
-	{ 114.f, 208.f, 3, PUFF_PERIOD, 0,               EXHALE_START, EXHALE_TIME, 1.f },    // Bomberman
-	{ 228.f, 212.f, 3, PUFF_PERIOD, PUFF_PERIOD / 2, EXHALE_START, EXHALE_TIME, -1.f },   // Eyti
+	{ 114.f, 208.f, 3, PUFF_PERIOD, 0,               EXHALE_START, EXHALE_TIME, 1.f },
+	{ 228.f, 212.f, 3, PUFF_PERIOD, PUFF_PERIOD / 2, EXHALE_START, EXHALE_TIME, -1.f },
 };
 #define NUM_SMOKERS int(sizeof(SMOKERS) / sizeof(SMOKERS[0]))
 
@@ -64,7 +59,6 @@ static TexturedQuad *makeQuad(ShaderProgram &program, float w, float h, glm::vec
 	return TexturedQuad::createTexturedQuad(geom, texCoords, program);
 }
 
-// Celda (col, row) de 16x16 de images/secret_fx.png
 static TexturedQuad *makeCell(ShaderProgram &program, int col, int row)
 {
 	glm::vec2 uv0(col * 16.f / FX_W, row * 16.f / FX_H);
@@ -188,7 +182,6 @@ void SecretScene::render(int windowWidth, int windowHeight)
 	program.setUniformMatrix4f("modelview", modelview);
 	bgQuad->render(bgTex);
 
-	// Creditos por el cielo, y encima el primer plano (colinas, prado, personajes)
 	renderCredits(projection);
 	program.use();
 	program.setUniformMatrix4f("projection", projection);
@@ -197,7 +190,6 @@ void SecretScene::render(int windowWidth, int windowHeight)
 	program.setUniformMatrix4f("modelview", modelview);
 	fgQuad->render(fgTex);
 
-	// Bong compartido entre los dos: burbujas y brasa mientras uno da la calada
 	int frame = 0;
 	for(int i = 0; i < 2; i++)
 	{
@@ -207,7 +199,6 @@ void SecretScene::render(int windowWidth, int windowHeight)
 	}
 	renderCell(bongQuads[0][frame], glm::vec2(146.f, 202.f), 4.f);
 
-	// Humo: cada bocanada se calcula a partir del momento en que salio
 	for(int s = 0; s < NUM_SMOKERS; s++)
 	{
 		const Smoker &sm = SMOKERS[s];
@@ -221,7 +212,6 @@ void SecretScene::render(int windowWidth, int windowHeight)
 			int cell = age < 300.f ? 0 : age < 800.f ? 1 : age < 1500.f ? 2 : 3;
 			float k = sm.scale / 3.f;
 			float sec = age / 1000.f;
-			// sale hacia delante, frena y sube serpenteando
 			glm::vec2 p(sm.x + sm.dir * k * (10.f * (1.f - std::exp(-sec * 3.f)) + 4.f * sec)
 			                 + k * 3.f * std::sin(sec * 2.6f + t0 * 0.37f),
 			            sm.y - k * 16.f * sec - k * 2.f * sec * sec);
@@ -238,7 +228,6 @@ void SecretScene::render(int windowWidth, int windowHeight)
 		promptQuad->render(promptTex);
 	}
 
-	// Fundido desde negro al entrar y a negro al salir
 	int level = 0;
 	if(time < FADE_IN_TIME)
 		level = FADE_LEVELS - time * (FADE_LEVELS + 1) / FADE_IN_TIME;

@@ -8,9 +8,6 @@
 #include "Texture.h"
 
 
-// Level selector: hover a level with the mouse to highlight it and click to play it.
-// Number keys (handled by Game) and the arrows + enter/space also work.
-
 
 class LevelSelectScene : public Scene
 {
@@ -32,9 +29,9 @@ private:
 	Sprite *background, *indicator, *digit, *bong;
 	void updateHover(int x, int y);
 
-	int hovered; // 0 .. NUM_LEVELS-1, -1 if no level is highlighted
+	int hovered;
 
 };
 
 
-#endif // _LEVEL_SELECT_SCENE_INCLUDE
+#endif

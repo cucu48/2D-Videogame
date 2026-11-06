@@ -31,7 +31,6 @@ void DitherFade::init(ShaderProgram &program, int w, int h)
 		tex[i].setMinFilter(GL_NEAREST);
 		tex[i].setMagFilter(GL_NEAREST);
 	}
-	// Las coordenadas de textura pasan de 1 para que la trama de 8x8 se repita
 	glm::vec2 geom[2] = { glm::vec2(0.f, 0.f), glm::vec2(float(w), float(h)) };
 	glm::vec2 texCoords[2] = { glm::vec2(0.f, 0.f), glm::vec2(w / 8.f, h / 8.f) };
 	quad = TexturedQuad::createTexturedQuad(geom, texCoords, program);

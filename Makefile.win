@@ -1,9 +1,3 @@
-# Build nativa en Windows con MSYS2 (terminal "MSYS2 UCRT64"):
-#   pacman -S make                 (solo la primera vez: make no viene con MSYS2)
-#   make -f Makefile.win install   (instala las librerias, solo la primera vez)
-#   make -f Makefile.win run
-# SOIL no existe en MSYS2: las imagenes se cargan con third_party/stb_image.h
-
 BUILD_DIR := build-win
 TARGET := $(BUILD_DIR)/game.exe
 

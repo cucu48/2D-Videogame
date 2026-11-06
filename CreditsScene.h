@@ -8,10 +8,6 @@
 #include "Credits.h"
 
 
-// Creditos sobre el fondo del menu principal (oscurecido), con la musica de
-// los creditos. Se llega desde el menu y al acabar el juego sin el final
-// secreto. Espacio, enter o Esc vuelven al menu.
-
 
 class CreditsScene : public Scene
 {
@@ -39,4 +35,4 @@ private:
 };
 
 
-#endif // _CREDITS_SCENE_INCLUDE
+#endif

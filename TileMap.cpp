@@ -103,7 +103,6 @@ bool TileMap::loadLevel(const string &levelFile)
 	sstream >> blankTileCode;
 	sstream.clear();
 
-	// Lista de tiles que no bloquean al jugador
 	getline(fin, line);
 	if(line.compare(0, 8, "NONSOLID") != 0)
 		return false;
@@ -115,14 +114,13 @@ bool TileMap::loadLevel(const string &levelFile)
 			solidTile[id] = false;
 	sstream.clear();
 
-	// Linea opcional "BUSH id": tile que es un arbusto (solido, lo destruyen las explosiones)
 	bushTile = -1;
 	streampos afterSolid = fin.tellg();
 	if(getline(fin, line) && line.compare(0, 4, "BUSH") == 0)
 	{
 		stringstream bush(line.substr(4));
 		if(!(bush >> bushTile) || bushTile < 0 || bushTile >= int(solidTile.size()) || !solidTile[bushTile])
-			return false; // mal formada, o el arbusto esta en NONSOLID
+			return false;
 	}
 	else
 	{
@@ -206,21 +204,17 @@ void TileMap::prepareArrays(const glm::vec2 &minCoords, ShaderProgram &program)
 		for(int i=0; i<mapSize.x; i++)
 		{
 			tile = map[j * mapSize.x + i];
-			// Non-empty tile
 			nTiles++;
 			posTile = glm::vec2(minCoords.x + i * tileSize, minCoords.y + j * tileSize);
 			texCoordTile[0] = glm::vec2(float(tile%tilesheetSize.x) / tilesheetSize.x, float(tile/tilesheetSize.x) / tilesheetSize.y);
 			texCoordTile[1] = texCoordTile[0] + tileTexSize;
-			//texCoordTile[0] += halfTexel;
 			texCoordTile[1] -= halfTexel;
-			// First triangle
 			vertices.push_back(posTile.x); vertices.push_back(posTile.y);
 			vertices.push_back(texCoordTile[0].x); vertices.push_back(texCoordTile[0].y);
 			vertices.push_back(posTile.x + blockSize); vertices.push_back(posTile.y);
 			vertices.push_back(texCoordTile[1].x); vertices.push_back(texCoordTile[0].y);
 			vertices.push_back(posTile.x + blockSize); vertices.push_back(posTile.y + blockSize);
 			vertices.push_back(texCoordTile[1].x); vertices.push_back(texCoordTile[1].y);
-			// Second triangle
 			vertices.push_back(posTile.x); vertices.push_back(posTile.y);
 			vertices.push_back(texCoordTile[0].x); vertices.push_back(texCoordTile[0].y);
 			vertices.push_back(posTile.x + blockSize); vertices.push_back(posTile.y + blockSize);
@@ -238,10 +232,6 @@ void TileMap::prepareArrays(const glm::vec2 &minCoords, ShaderProgram &program)
 	posLocation = program.bindVertexAttribute("position", 2, 4*sizeof(float), 0);
 	texCoordLocation = program.bindVertexAttribute("texCoord", 2, 4*sizeof(float), (void *)(2*sizeof(float)));
 }
-
-// Collision tests for axis aligned bounding boxes.
-// Method collisionMoveDown also corrects Y coordinate if the box is
-// already intersecting a tile below.
 
 bool TileMap::collisionMoveLeft(const glm::ivec2 &pos, const glm::ivec2 &size) const
 {
@@ -297,7 +287,6 @@ bool TileMap::collisionMoveDown(const glm::ivec2 &pos, const glm::ivec2 &size, i
 	return false;
 }
 
-//lo del techo
 bool TileMap::collisionMoveUp(const glm::ivec2 &pos, const glm::ivec2 &size, int *posY) const
 {
 	int x0, x1, y;
@@ -317,7 +306,6 @@ bool TileMap::collisionMoveUp(const glm::ivec2 &pos, const glm::ivec2 &size, int
 	return false;
 }
 
-// true si la caja se solapa con algun tile solido
 bool TileMap::collisionBox(const glm::ivec2 &pos, const glm::ivec2 &size) const
 {
 	int x0 = floorDiv(pos.x, tileSize), x1 = floorDiv(pos.x + size.x - 1, tileSize);

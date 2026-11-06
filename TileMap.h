@@ -8,11 +8,6 @@
 #include <vector>
 
 
-// Class Tilemap is capable of loading a tile map from a text file in a very
-// simple format (see level01.txt for an example). With this information
-// it builds a single VBO that contains all tiles. As a result the render
-// method draws the whole map independently of what is visible.
-
 
 class TileMap
 {
@@ -21,7 +16,6 @@ private:
 	TileMap(const string &levelFile, const glm::vec2 &minCoords, ShaderProgram &program);
 
 public:
-	// Tile maps can only be created inside an OpenGL context
 	static TileMap *createTileMap(const string &levelFile, const glm::vec2 &minCoords, ShaderProgram &program);
 
 	~TileMap();
@@ -41,15 +35,12 @@ public:
 	bool isSolid(int x, int y) const;
 	glm::ivec2 findSpawn(int preferredCol, const glm::ivec2 &size) const;
 
-	// Bloqueos dinamicos (bombas): un tile marcado se comporta como solido
 	void setBlocked(int x, int y, bool blocked);
 	bool isWall(int x, int y) const;
 
-	// Cambiar un tile del mapa en mitad de la partida (cascadas). Rehace el VBO.
 	int getTile(int x, int y) const;
 	void setTile(int x, int y, int tile);
 	int getBlankTile() const { return blankTileCode; }
-	// Arbustos (linea BUSH del fichero del nivel): tiles solidos que las explosiones destruyen
 	bool isBush(int x, int y) const { return bushTile >= 0 && getTile(x, y) == bushTile; }
 	
 private:
@@ -69,12 +60,12 @@ private:
 	glm::vec2 tileTexSize;
 	int *map;
 	int blankTileCode;
-	int bushTile;                   // -1 si el nivel no tiene arbustos
-	glm::vec2 minCoords;            // para rehacer el VBO en setTile
+	int bushTile;
+	glm::vec2 minCoords;
 	ShaderProgram *program;
 };
 
 
-#endif // _TILE_MAP_INCLUDE
+#endif
 
 
