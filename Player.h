@@ -50,8 +50,12 @@ public:
 	void addSpeed();
 
 	// Wings power-up: pressing UP in the air flaps, no floor needed
-	bool hasWings() const { return bWings; }
+	bool hasWings() const { return bGod || bWings; }
+	bool hasRealWings() const { return bWings; }
 	void setWings(bool wings) { bWings = wings; }
+
+	// Modo dios: power-ups al maximo encima de los reales, que no se tocan
+	void setGodMode(bool god) { bGod = god; }
 	
 private:
 	bool nudgeHorizontal();
@@ -64,6 +68,7 @@ private:
 	bool bDead;
 	bool bHeart;
 	bool bWings;
+	bool bGod;
 	bool upWasPressed;    // UP key last frame, to detect a new press (flap)
 	bool leftWasPressed, rightWasPressed;   // LEFT/RIGHT last frame
 	int lastDir;          // -1/1: the last of LEFT/RIGHT pressed wins when both are held

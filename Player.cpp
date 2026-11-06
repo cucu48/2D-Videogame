@@ -70,6 +70,7 @@ void Player::init(const glm::ivec2 &tileMapPos, ShaderProgram &shaderProgram)
 	bDead = false;
 	bHeart = false;
 	bWings = false;
+	bGod = false;
 	upWasPressed = false;
 	leftWasPressed = rightWasPressed = false;
 	lastDir = 1;
@@ -176,7 +177,7 @@ void Player::update(int deltaTime)
     glm::ivec2 hbSize(HITBOX_WIDTH, HITBOX_HEIGHT);
     bool bInAir = bJumping || !bOnGround;
     // velocidad con decimales: se acumula la parte fraccionaria (2.5 -> 2, 3, 2, 3...)
-    moveAccum += MOVE_SPEED * speedMul;
+    moveAccum += MOVE_SPEED * getSpeedMul();
     int speed = int(moveAccum);
     moveAccum -= speed;
     
@@ -241,7 +242,7 @@ void Player::update(int deltaTime)
         startJump();
         upWasPressed = upNow;
     }
-    if(bWings && upNow && !upWasPressed && !bOnGround)
+    if(hasWings() && upNow && !upWasPressed && !bOnGround)
     {
         bJumping = true;
         bRising = true;

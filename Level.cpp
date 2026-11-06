@@ -285,6 +285,7 @@ void Level::update(int deltaTime)
 	}
 
 	// Timer: mientras dura, el reloj y todo lo enemigo se detienen
+	player->setGodMode(Game::instance().isGodMode());
 	bool frozen = freezeTime > 0;
 	if(frozen)
 		freezeTime = std::max(0, freezeTime - deltaTime);
@@ -620,7 +621,7 @@ void Level::finishLevel()
 	carried.blastRange = blastRange;
 	carried.remote = remoteEnabled;
 	carried.speedMul = player->getSpeedMul();
-	carried.wings = player->hasWings();
+	carried.wings = player->hasRealWings();
 	carried.heart = player->hasHeart();
 	if(number < NUM_LEVELS)
 		Game::instance().startLevel(number + 1);
@@ -813,7 +814,7 @@ void Level::keyPressed(int key)
 	if(state == LEVEL_SECRET_FADE)
 		return;
 	// D: con el mando a distancia, detona la bomba del jugador mas antigua
-	if(key == GLFW_KEY_D && remoteEnabled && state == LEVEL_PLAYING && !player->isDead())
+	if(key == GLFW_KEY_D && (remoteEnabled || Game::instance().isGodMode()) && state == LEVEL_PLAYING && !player->isDead())
 	{
 		for(size_t i = 0; i < bombs.size(); i++)
 			if(!bombs[i]->isEnemyBomb())
@@ -871,7 +872,7 @@ void Level::placeBomb()
 	for(size_t i = 0; i < bombs.size(); i++)
 		if(!bombs[i]->isEnemyBomb())
 			playerBombs++;
-	if(playerBombs >= maxBombs)
+	if(playerBombs >= (Game::instance().isGodMode() ? MAX_BOMBS_LIMIT : maxBombs))
 		return;
 
 	// tile donde esta el centro del jugador
@@ -1074,7 +1075,7 @@ void Level::renderBong()
 
 int Level::currentBlastRange() const
 {
-	return bFullFire ? MAX_BLAST_RANGE : blastRange;
+	return (bFullFire || Game::instance().isGodMode()) ? MAX_BLAST_RANGE : blastRange;
 }
 
 void Level::applyPowerUp(PowerUpType type)
@@ -1187,7 +1188,7 @@ HudState Level::hudState() const
 	s.hasHeart = player->hasHeart();
 	s.lives = Game::instance().getLives();
 	s.enemiesLeft = int(enemies.size()) + (boss != NULL ? 1 : 0);
-	s.maxBombs = maxBombs;
+	s.maxBombs = Game::instance().isGodMode() ? MAX_BOMBS_LIMIT : maxBombs;
 	s.blastRange = currentBlastRange();
 	return s;
 }
